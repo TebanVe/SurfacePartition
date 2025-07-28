@@ -1,0 +1,18 @@
+# Core numerical libraries
+numpy>=1.21.0
+scipy>=1.7.0
+
+# Optimization
+pyslsqp>=0.1.0
+
+# Configuration
+pyyaml>=6.0
+
+# Visualization (for later use)
+matplotlib>=3.5.0
+
+# Data handling
+h5py>=3.7.0
+
+# Utilities
+tqdm>=4.62.0 
