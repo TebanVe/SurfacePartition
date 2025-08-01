@@ -12,12 +12,21 @@ __email__ = "your.email@example.com"
 # Import main classes for easy access
 from .config import Config
 from .ring_mesh import RingMesh
-from .pyslsqp_optimizer import PySLSQPOptimizer
-from .find_contours import ContourAnalyzer
+from .plot_utils import plot_ring_mesh, plot_matrices, plot_mesh_statistics, save_mesh_plots
+from .logging_config import setup_logging, get_logger, log_performance, log_performance_conditional
+from .pyslsqp_optimizer import PySLSQPOptimizer, RefinementTriggered
 
 __all__ = [
     "Config",
     "RingMesh", 
+    "plot_ring_mesh",
+    "plot_matrices", 
+    "plot_mesh_statistics",
+    "save_mesh_plots",
+    "setup_logging",
+    "get_logger",
+    "log_performance",
+    "log_performance_conditional",
     "PySLSQPOptimizer",
-    "ContourAnalyzer",
+    "RefinementTriggered"
 ] 

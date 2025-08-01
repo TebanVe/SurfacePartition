@@ -20,86 +20,128 @@ Where $R$ is the ring domain in R².
 
 ## Installation
 
-1. **Prerequisites**: 
-    - Install `pyenv` to manage Python versions
-    - Install the `pyenv-virtualenv` plugin
-    - This project uses Python 3.9.7 as specified in the `.python-version` file
+### Prerequisites
 
-2. **Set up Python Environment**: 
-    ```bash
-    # Install the required Python version if you don't have it
-    pyenv install 3.9.7
-    
-    # Create a virtualenv named 'ring_partition' using Python 3.9.7
-    pyenv virtualenv 3.9.7 ring_partition
-    
-    # Navigate to the project directory
-    cd /path/to/project
-    
-    # The .python-version file will automatically activate the 'ring_partition' environment
-    ```
+**Important**: This project requires Python 3.9.7 specifically due to PySLSQP compatibility issues. Python 3.13+ causes compilation errors with PySLSQP.
 
-3. **Install Dependencies**: 
-    ```bash
-    # With the 'ring_partition' environment active, install dependencies
-    pip install -r requirements.txt
-    ```
+1. **Install pyenv and pyenv-virtualenv**:
+   ```bash
+   # macOS
+   brew install pyenv pyenv-virtualenv
+   
+   # Linux
+   curl https://pyenv.run | bash
+   ```
+
+2. **Set up Python Environment**:
+   ```bash
+   # Install Python 3.9.7
+   pyenv install 3.9.7
+   
+   # Create virtual environment
+   pyenv virtualenv 3.9.7 ringtest-3.9
+   
+   # Navigate to project directory
+   cd /path/to/RingTest
+   
+   # Activate environment (automatic via .python-version)
+   pyenv local ringtest-3.9
+   ```
+
+3. **Install Dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+### Troubleshooting
+
+**PySLSQP Installation Issues**: If you encounter compilation errors like `library 'ifcore' not found`, ensure you're using Python 3.9.7. The project includes a `.python-version` file that should automatically activate the correct environment.
+
+## Current Implementation Status
+
+### ✅ Implemented Features
+
+- **Ring Mesh Generation**: 2D annulus mesh with triangular elements
+- **FEM Matrix Computation**: Mass and stiffness matrices for Γ-convergence
+- **PySLSQP Optimizer**: Complete optimization implementation with:
+  - Energy functional computation
+  - Analytic gradients and Jacobians
+  - Constraint handling (partition + area)
+  - Initial condition generation and validation
+  - Enhanced logging and performance monitoring
+- **Testing Framework**: Comprehensive test suite for all components
+- **Logging System**: Timestamped logs with performance tracking
+
+### 🔄 In Progress
+
+- **Projection Algorithm**: Orthogonal projection for constraint satisfaction
+- **Main Optimization Script**: Full optimization pipeline
+- **Visualization Tools**: Results plotting and analysis
 
 ## Usage
 
-### Basic Usage
-
-Run the main optimization script:
+### Testing the Implementation
 
 ```bash
+# Test mesh and matrix computation
+python examples/test_mesh_matrices.py
+
+# Test optimizer functionality
+python examples/test_optimizer.py
+
+# Run main program (basic structure)
 python examples/find_optimal_partition.py
 ```
 
-### Using Custom Parameters
+### Configuration
 
-Create a YAML file with your parameters and use:
-
-```bash
-python examples/find_optimal_partition.py --input your_parameters.yaml
-```
-
-Example `parameters/input.yaml`:
-```yaml
-n_partitions: 3
-n_radial: 8
-n_angular: 16
-r_inner: 0.5
-r_outer: 1.0
-lambda_penalty: 0.01
-max_iter: 15000
-tol: 1e-6
-epsilon: 0.1
-seed: 42
-```
+The project uses configuration files in `parameters/` directory. See `parameters/input.yaml` for available parameters.
 
 ## Project Structure
 
-- `src/`: Core implementation
-  - `ring_mesh.py`: Ring mesh generation and matrix computation
-  - `pyslsqp_optimizer.py`: PySLSQP optimization implementation
-  - `config.py`: Configuration parameters
-  - `projection_iterative.py`: Orthogonal projection for constraints
-  - `find_contours.py`: Contour extraction and analysis
-  - `plot_utils.py`: Visualization utilities
-- `examples/`: Example scripts
-  - `find_optimal_partition.py`: Main optimization script
-  - `ring_visualization.py`: Ring visualization
-- `parameters/`: Configuration files
-- `results/`: Output directory
-- `visualizations/`: Visualization outputs
+```
+RingTest/
+├── src/                          # Core implementation
+│   ├── ring_mesh.py             # Ring mesh generation
+│   ├── pyslsqp_optimizer.py     # PySLSQP optimization
+│   ├── config.py                # Configuration management
+│   ├── plot_utils.py            # Visualization utilities
+│   └── logging_config.py        # Logging system
+├── examples/                     # Example scripts
+│   ├── find_optimal_partition.py # Main program
+│   ├── test_mesh_matrices.py    # Mesh testing
+│   └── test_optimizer.py        # Optimizer testing
+├── parameters/                   # Configuration files
+├── logs/                        # Timestamped log files
+└── results/                     # Optimization results
+```
+
+## Key Features
+
+### Ring Mesh (`src/ring_mesh.py`)
+- 2D annulus mesh generation in polar coordinates
+- FEM matrix computation (mass and stiffness)
+- Property-based access (`mesh.K`, `mesh.M`, `mesh.v`)
+- Mesh quality validation and statistics
+
+### PySLSQP Optimizer (`src/pyslsqp_optimizer.py`)
+- Γ-convergence energy functional implementation
+- Analytic gradients and constraint Jacobians
+- Initial condition generation and validation
+- Performance monitoring with decorators
+- Comprehensive logging and error handling
+
+### Logging System (`src/logging_config.py`)
+- Timestamped log files
+- Performance monitoring decorators
+- Component-specific logging
+- Automatic log rotation
 
 ## Results
 
-The optimization results will be saved in the `results/` directory, including:
-- Solution files (.h5 format)
-- Optimization logs
-- Visualization images
+Optimization results are saved in the `results/` directory with timestamped filenames. Logs are stored in `logs/` with detailed performance metrics.
 
 ## References
 
-- Bogosel, B., & Oudet, É. (Year). Partitions of Minimal Length on Manifolds. [Paper reference] 
+- Bogosel, B., & Oudet, É. (Year). Partitions of Minimal Length on Manifolds. [Paper reference]
+- PySLSQP: [https://github.com/danielzuegner/pyslsqp](https://github.com/danielzuegner/pyslsqp) 

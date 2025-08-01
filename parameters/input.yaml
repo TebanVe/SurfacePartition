@@ -1,2 +1,58 @@
-# Default input parameters for ring partition optimization
-# TODO: Add configuration parameters 
+# Ring mesh parameters for testing
+n_radial: 8
+n_angular: 16
+r_inner: 0.5
+r_outer: 1.0
+
+# Optimization parameters (for future use)
+n_partitions: 3
+lambda_penalty: 1.0
+max_iter: 1000
+
+# SLSQP parameters
+tol: 1e-6
+slsqp_eps: 1e-8
+slsqp_disp: false
+
+# Optimizer selection
+optimizer_type: pyslsqp
+
+# Optimization parameters
+starget: 1.0
+c: 0.5
+rho: 0.5
+m: 10
+seed: 42
+
+# Refinement parameters
+refinement_levels: 1
+n_radial_increment: 2
+n_angular_increment: 2
+use_analytic: true
+
+# Mesh refinement convergence criteria
+refine_patience: 30
+refine_delta_energy: 1e-4
+refine_grad_tol: 1e-2
+refine_constraint_tol: 1e-2
+
+# Initial condition parameters
+use_custom_initial_condition: false
+initial_condition_path: null
+allow_random_fallback: true
+
+# Projection parameters
+projection_max_iter: 100
+
+# Matrix testing parameters
+test_barycentric: true
+test_stable: true
+test_stable_fem: true
+matrix_test_output_dir: "matrix_test_results"
+
+# Logging parameters
+log_frequency: 50
+use_last_valid_iterate: true
+
+# PySLSQP parameters
+pyslsqp_save_itr: major 
