@@ -28,10 +28,14 @@ from core.interpolation import nearest_neighbor_interpolate
 def optimize_surface_partition(provider, config, solution_dir=None):
 	logger = get_logger(__name__)
 	initial_n_partitions = config.n_partitions
+	surface = provider.surface_name()
+	label1, label2 = provider.resolution_labels()
+	n1_init, n2_init = provider.get_resolution()
 	timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
 	refinement_levels = getattr(config, 'refinement_levels', 1)
+	v1_info, v2_info = provider.resolution_summary(refinement_levels)
 
-	outdir = f"results/run_{timestamp}_npart{initial_n_partitions}_ref{refinement_levels}_lam{getattr(config, 'lambda_penalty', 0.0)}_seed{config.seed}"
+	outdir = f"results/run_{timestamp}_surf{surface}_npart{initial_n_partitions}_v1{label1}{v1_info}_v2{label2}{v2_info}_lam{getattr(config, 'lambda_penalty', 0.0)}_seed{config.seed}"
 	os.makedirs(outdir, exist_ok=True)
 	logfile_path = os.path.join(outdir, 'run.log')
 
@@ -88,7 +92,7 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 				ftol=float(getattr(config, 'tol', 1e-6)),
 				use_analytic=getattr(config, 'use_analytic', True),
 				results_dir=outdir,
-				run_name=f"pyslsqp_part{config.n_partitions}_level{level}",
+				run_name=f"pyslsqp_part{config.n_partitions}_v1{label1}{provider.get_resolution()[0]}_v2{label2}{provider.get_resolution()[1]}_level{level}",
 				is_mesh_refinement=(level > 0),
 				save_itr=getattr(config, 'pyslsqp_save_itr', 'major')
 			)
@@ -113,7 +117,7 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 	final = results[-1]
 	x_opt = final['x_opt']
 	mesh = final['mesh']
-	solution_path = os.path.join(solution_dir or outdir, f"surface_part{config.n_partitions}_{timestamp}.h5")
+	solution_path = os.path.join(solution_dir or outdir, f"surface_part{config.n_partitions}_surf{surface}_v1{label1}{v1_info}_v2{label2}{v2_info}_lam{getattr(config, 'lambda_penalty', 0.0)}_seed{config.seed}_{timestamp}.h5")
 	with h5py.File(solution_path, 'w') as f:
 		f.create_dataset('x_opt', data=x_opt)
 		f.create_dataset('x0', data=x0)
@@ -128,6 +132,9 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 			'use_analytic': bool(getattr(config, 'use_analytic', True)),
 			'lambda_penalty': float(getattr(config, 'lambda_penalty', 0.0)),
 			'seed': int(config.seed),
+			'surface': surface,
+			'resolution_labels': [label1, label2],
+			'resolution_summary': [v1_info, v2_info],
 		},
 		'final_mesh_stats': mesh.get_mesh_statistics(),
 		'final_epsilon': float(final['epsilon']),
@@ -170,7 +177,9 @@ def main():
 		config = Config()
 
 	if args.surface == 'ring':
-		provider = RingMeshProvider(config.n_radial, config.n_angular, config.r_inner, config.r_outer)
+		provider = RingMeshProvider(config.n_radial, config.n_angular, config.r_inner, config.r_outer,
+									 n_radial_increment=getattr(config, 'n_radial_increment', 0),
+									 n_angular_increment=getattr(config, 'n_angular_increment', 0))
 	else:
 		raise ValueError(f"Unsupported surface type: {args.surface}")
 
