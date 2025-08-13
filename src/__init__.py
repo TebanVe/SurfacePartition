@@ -15,6 +15,12 @@ from .ring_mesh import RingMesh
 from .plot_utils import plot_ring_mesh, plot_matrices, plot_mesh_statistics, save_mesh_plots
 from .logging_config import setup_logging, get_logger, log_performance, log_performance_conditional
 from .pyslsqp_optimizer import PySLSQPOptimizer, RefinementTriggered
+from .projection_iterative import (
+    orthogonal_projection_iterative,
+    orthogonal_projection_direct,
+    validate_projection_result,
+    create_initial_condition_with_projection
+)
 
 __all__ = [
     "Config",
@@ -28,5 +34,9 @@ __all__ = [
     "log_performance",
     "log_performance_conditional",
     "PySLSQPOptimizer",
-    "RefinementTriggered"
+    "RefinementTriggered",
+    "orthogonal_projection_iterative",
+    "orthogonal_projection_direct",
+    "validate_projection_result",
+    "create_initial_condition_with_projection"
 ] 

@@ -276,91 +276,101 @@ class PySLSQPOptimizer:
         self.logger.info("✓ Initial condition processed")
         return processed_x0
     
-    @log_performance("energy computation")
     def compute_energy(self, x: np.ndarray) -> float:
         """
-        Compute the total energy of the system.
+        Compute the Γ-convergence energy functional.
         
-        The energy functional is:
+        The energy is:
             J_ε(u) = ε ∫_Ω |∇u|² + (1/ε) ∫_Ω u²(1-u)²
         
-        For n partitions, we compute:
+        For n partitions, we minimize:
             E = Σ_{i=1}^n J_ε(u_i) + penalty terms
         
         Args:
-            x: Flattened vector of partition functions
+            x: Optimization variable (flattened n_partitions × N)
             
         Returns:
             Total energy value
         """
         N = len(self.v)
-        phi = x.reshape(N, self.n_partitions)
+        n = self.n_partitions
         
-        # Compute gradient term: ε ∫_Ω |∇u|²
-        grad_term = 0
-        for i in range(self.n_partitions):
+        # Reshape x to matrix form: (N, n_partitions)
+        phi = x.reshape(N, n)
+        
+        # Compute energy for each partition
+        total_energy = 0.0
+        
+        for i in range(n):
             phi_i = phi[:, i]
-            term = self.epsilon * float(phi_i.T @ (self.K @ phi_i))
-            grad_term += term
             
-        # Compute interface term: (1/ε) ∫_Ω u²(1-u)²
-        interface_term = 0
-        for i in range(self.n_partitions):
-            phi_i = phi[:, i]
+            # Gradient term: ε ∫_Ω |∇u|²
+            gradient_term = self.epsilon * float(phi_i.T @ (self.K @ phi_i))
+            
+            # Interface term: (1/ε) ∫_Ω u²(1-u)²
             interface_vec = phi_i**2 * (1 - phi_i)**2
-            term = (1/self.epsilon) * float(interface_vec.T @ (self.M @ interface_vec))
-            interface_term += term
+            interface_term = (1/self.epsilon) * float(interface_vec.T @ (self.M @ interface_vec))
             
-        # Compute penalty term for constant functions
-        penalty_term = 0
-        for i in range(self.n_partitions):
-            phi_i = phi[:, i]
-            mean_i = np.sum(self.v * phi_i) / self.total_area
-            var_i = np.sum(self.v * (phi_i - mean_i)**2) / self.total_area
-            std_i = np.sqrt(var_i + 1e-10)  # Small regularization
-            term = self.lambda_penalty * (std_i - self.starget)**2
-            penalty_term += term
-            
-        total_energy = grad_term + interface_term + penalty_term
+            # Add to total energy
+            total_energy += gradient_term + interface_term
         
-        self.logger.debug(f"Energy breakdown: grad={grad_term:.6e}, "
-                         f"interface={interface_term:.6e}, penalty={penalty_term:.6e}")
+        # Add penalty term for constant functions (optional)
+        if self.lambda_penalty > 0:
+            penalty = 0.0
+            for i in range(n):
+                phi_i = phi[:, i]
+                # Penalty for functions that are too constant
+                mean_val = np.mean(phi_i)
+                variance = np.var(phi_i)
+                penalty += self.lambda_penalty * (1.0 - variance / (mean_val * (1 - mean_val) + 1e-8))
+            total_energy += penalty
         
         return total_energy
-    
-    @log_performance("gradient computation")
+
     def compute_gradient(self, x: np.ndarray) -> np.ndarray:
         """
-        Compute the analytic gradient of the energy.
+        Compute the gradient of the Γ-convergence energy functional.
         
         Args:
-            x: Flattened vector of partition functions
+            x: Optimization variable (flattened n_partitions × N)
             
         Returns:
-            Gradient vector
+            Gradient vector (same shape as x)
         """
         N = len(self.v)
-        phi = x.reshape(N, self.n_partitions)
-        grad = np.zeros_like(x)
+        n = self.n_partitions
         
-        for i in range(self.n_partitions):
+        # Reshape x to matrix form: (N, n_partitions)
+        phi = x.reshape(N, n)
+        
+        # Initialize gradient
+        grad = np.zeros_like(x)
+        grad_matrix = grad.reshape(N, n)
+        
+        # Compute gradient for each partition
+        for i in range(n):
             phi_i = phi[:, i]
             
-            # Gradient term: 2ε K φ_i
-            grad_grad = 2 * self.epsilon * (self.K @ phi_i)
+            # Gradient of gradient term: 2ε K u
+            grad_gradient = 2 * self.epsilon * (self.K @ phi_i)
             
-            # Interface term: (2/ε) M(φ_i²(1-φ_i)²) * (1-2φ_i)
+            # Gradient of interface term: (2/ε) M v × (1 - 2u) where v = u²(1-u)²
             interface_vec = phi_i**2 * (1 - phi_i)**2
             grad_interface = (2/self.epsilon) * (self.M @ interface_vec) * (1 - 2*phi_i)
             
-            # Penalty term
-            mean_i = np.sum(self.v * phi_i) / self.total_area
-            var_i = np.sum(self.v * (phi_i - mean_i)**2) / self.total_area
-            std_i = np.sqrt(var_i + 1e-10)
-            grad_penalty = 2 * self.lambda_penalty * (std_i - self.starget) * \
-                         (self.v * (phi_i - mean_i)) / (self.total_area * std_i)
-            
-            grad[i*N:(i+1)*N] = grad_grad + grad_interface + grad_penalty
+            # Add to gradient
+            grad_matrix[:, i] = grad_gradient + grad_interface
+        
+        # Add penalty gradient if needed
+        if self.lambda_penalty > 0:
+            for i in range(n):
+                phi_i = phi[:, i]
+                mean_val = np.mean(phi_i)
+                variance = np.var(phi_i)
+                
+                # Gradient of penalty term
+                penalty_grad = self.lambda_penalty * (-2 * (phi_i - mean_val) / N) / (mean_val * (1 - mean_val) + 1e-8)
+                grad_matrix[:, i] += penalty_grad
         
         return grad
     
