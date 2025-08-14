@@ -47,12 +47,18 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 	root_logger.addHandler(file_handler)
 
 	results = []
+	levels_meta = []
 	logger.info(f"Starting surface partition optimization with {refinement_levels} refinement levels")
 
 	for level in range(refinement_levels):
 		logger.info("=" * 80)
 		logger.info(f"Refinement Level {level+1}/{refinement_levels}")
 		logger.info("=" * 80)
+
+		# Set resolution for this level (based on provider's stored increments)
+		n1 = getattr(provider, 'init_n_radial', n1_init) + level * getattr(provider, 'incr_n_radial', 0)
+		n2 = getattr(provider, 'init_n_angular', n2_init) + level * getattr(provider, 'incr_n_angular', 0)
+		provider.set_resolution(n1, n2)
 
 		mesh = provider.build()
 		from core.tri_mesh import TriMesh  # type: ignore
@@ -112,6 +118,14 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 			'time': elapsed,
 			'success': success,
 		})
+		levels_meta.append({
+			'level': level,
+			label1: int(provider.get_resolution()[0]),
+			label2: int(provider.get_resolution()[1]),
+			'N': int(N),
+			'v_sum': float(np.sum(mesh.v)),
+			'epsilon': float(epsilon),
+		})
 
 	# Save final solution
 	final = results[-1]
@@ -136,6 +150,7 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 			'resolution_labels': [label1, label2],
 			'resolution_summary': [v1_info, v2_info],
 		},
+		'levels': levels_meta,
 		'final_mesh_stats': mesh.get_mesh_statistics(),
 		'final_epsilon': float(final['epsilon']),
 		'final_energy': float(final['energy']),
