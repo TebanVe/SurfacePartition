@@ -4,13 +4,11 @@ from typing import Optional, Tuple
 try:
 	from ..logging_config import get_logger
 	from ..core.tri_mesh import TriMesh
-	from ..ring_mesh import RingMesh
 except Exception:
 	import sys, os
 	sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 	from logging_config import get_logger
 	from core.tri_mesh import TriMesh
-	from ring_mesh import RingMesh
 
 
 class RingMeshProvider:
@@ -54,11 +52,38 @@ class RingMeshProvider:
 		else:
 			return f"{self.init_n_radial}", f"{self.init_n_angular}"
 
+	def _generate_vertices(self) -> np.ndarray:
+		"""Generate ring vertices in polar coordinates (R2)."""
+		r = np.linspace(self.r_inner, self.r_outer, self.n_radial)
+		theta = np.linspace(0, 2 * np.pi, self.n_angular, endpoint=False)
+		verts = []
+		for radius in r:
+			for angle in theta:
+				x = radius * np.cos(angle)
+				y = radius * np.sin(angle)
+				verts.append([x, y])
+		return np.array(verts)
+
+	def _generate_triangles(self) -> np.ndarray:
+		"""Generate counterclockwise triangles for the structured ring grid."""
+		tris = []
+		for i in range(self.n_radial - 1):
+			for j in range(self.n_angular):
+				current = i * self.n_angular + j
+				next_radial = (i + 1) * self.n_angular + j
+				next_angular = i * self.n_angular + ((j + 1) % self.n_angular)
+				next_both = (i + 1) * self.n_angular + ((j + 1) % self.n_angular)
+				# Triangle 1: [current, next_radial, next_angular]
+				tris.append([current, next_radial, next_angular])
+				# Triangle 2: [next_radial, next_both, next_angular]
+				tris.append([next_radial, next_both, next_angular])
+		return np.array(tris, dtype=int)
+
 	def build(self) -> TriMesh:
-		# Reuse existing ring vertex/face generator
-		ring = RingMesh(self.n_radial, self.n_angular, self.r_inner, self.r_outer)
-		vertices = ring.vertices
-		faces = ring.faces
+		# Generate vertices/faces directly to avoid depending on RingMesh
+		self.logger.info(f"Building ring TriMesh: nr={self.n_radial}, na={self.n_angular}, r_in={self.r_inner}, r_out={self.r_outer}")
+		vertices = self._generate_vertices()
+		faces = self._generate_triangles()
 		return TriMesh(vertices, faces)
 
 	def theoretical_total_area(self) -> float:
