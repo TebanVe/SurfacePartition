@@ -19,6 +19,7 @@ import re
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from logging_config import get_logger
+from surfaces.ring import RingMeshProvider
 
 def load_pyslsqp_internal_data(hdf5_file_path: str) -> Optional[Dict]:
     """
@@ -420,6 +421,7 @@ def plot_constraint_evolution(constraint_data: Dict, level_boundaries: List[int]
                             max_vertices_plot: int = 50,
                             unity_last_level: Optional[np.ndarray] = None,
                             unity_last_start: Optional[int] = None,
+                            theoretical_total_area: Optional[float] = None,
                             logger=None):
     """
     Create 2x2 grid of constraint evolution plots.
@@ -506,13 +508,10 @@ def plot_constraint_evolution(constraint_data: Dict, level_boundaries: List[int]
     if area_evolution.shape[0] > 0:
         n_partitions_actual = area_evolution.shape[1]
         
-        # Calculate target area for ring (π * (r_outer² - r_inner²) / n_partitions)
-        # Using default values from config if not available
-        r_inner = 0.5
-        r_outer = 1.0
-        theoretical_total_area = np.pi * (r_outer**2 - r_inner**2)
-        target_area = theoretical_total_area / n_partitions_actual
-        axes[1, 0].axhline(y=target_area, color='k', linestyle='-', label='Target Area')
+        # Target area: use theoretical total area if provided; else skip line
+        if theoretical_total_area is not None:
+            target_area = theoretical_total_area / n_partitions_actual
+            axes[1, 0].axhline(y=target_area, color='k', linestyle='-', label='Target Area')
         
         # Plot each partition's area
         for i in range(n_partitions_actual):
@@ -615,7 +614,6 @@ def analyze_optimization_run(results_dir: str, output_dir: str = None):
     import sys
     import os
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-    from src.ring_mesh import RingMesh
     
     logger = get_logger(__name__)
     
@@ -651,13 +649,28 @@ def analyze_optimization_run(results_dir: str, output_dir: str = None):
     # Helper to parse level and mesh sizes from filename
     def parse_level_mesh_from_name(path: str) -> Tuple[int, Optional[int], Optional[int]]:
         name = os.path.basename(path)
-        # Expect pattern like: pyslsqp_part{p}_nt{nr}_np{na}_lam{...}_seed{...}_level{L}_...
+        # Support old: ..._nt{nr}_np{na}_level{L}_...
+        # and new: ..._v1{label}{nr}_v2{label}{na}_level{L}_...
         level_match = re.search(r"_level(\d+)", name)
-        nr_match = re.search(r"_nt(\d+)", name)
-        na_match = re.search(r"_np(\d+)", name)
         level = int(level_match.group(1)) if level_match else 0
-        nr = int(nr_match.group(1)) if nr_match else None
-        na = int(na_match.group(1)) if na_match else None
+        # Try old tokens first
+        nr = None
+        na = None
+        m_nr_old = re.search(r"_nt(\d+)", name)
+        m_na_old = re.search(r"_np(\d+)", name)
+        if m_nr_old:
+            nr = int(m_nr_old.group(1))
+        if m_na_old:
+            na = int(m_na_old.group(1))
+        # If old tokens missing, try new v1/v2 tokens (digits at end)
+        if nr is None:
+            m_nr_new = re.search(r"_v1[a-zA-Z]*?(\d+)", name)
+            if m_nr_new:
+                nr = int(m_nr_new.group(1))
+        if na is None:
+            m_na_new = re.search(r"_v2[a-zA-Z]*?(\d+)", name)
+            if m_na_new:
+                na = int(m_na_new.group(1))
         return level, nr, na
     
     # Sort files by level index
@@ -672,22 +685,59 @@ def analyze_optimization_run(results_dir: str, output_dir: str = None):
     
     # Extract constraint evolution data
     n_partitions = metadata.get('input_parameters', {}).get('RING_PARAMS', {}).get('n_partitions', 2)
+    # Prefer metadata-driven reconstruction if available
+    surface = metadata.get('input_parameters', {}).get('surface')
+    levels_meta = metadata.get('levels') if isinstance(metadata.get('levels'), list) else None
     results = []
-    for internal_data_file in internal_data_files:
-        level, nr_level, na_level = parse_level_mesh_from_name(internal_data_file)
-        # Build per-level mesh to get the matching v
-        nr_eff = nr_level if nr_level is not None else n_radial
-        na_eff = na_level if na_level is not None else n_angular
-        mesh_level = RingMesh(nr_eff, na_eff, r_inner, r_outer)
-        mesh_level.compute_matrices()
-        v_level = mesh_level.v
-        data = load_pyslsqp_internal_data(internal_data_file)
-        if data:
-            results.append({
-                'internal_data_file': internal_data_file,
-                'v': v_level
-            })
-    
+    theoretical_total_area = None
+    if surface == 'ring' and levels_meta:
+        # Sort by level and align with internal files (already sorted by level)
+        levels_meta_sorted = sorted(levels_meta, key=lambda x: x.get('level', 0))
+        # Build a ring provider from metadata
+        r_inner = mesh_params.get('r_inner', 0.5)
+        r_outer = mesh_params.get('r_outer', 1.0)
+        # Initial resolution and increments are not needed; we'll set per level
+        provider = RingMeshProvider(n_radial, n_angular, r_inner, r_outer)
+        theoretical_total_area = provider.theoretical_total_area()
+        for idx, internal_data_file in enumerate(internal_data_files):
+            lm = levels_meta_sorted[idx] if idx < len(levels_meta_sorted) else {}
+            # labels may be arbitrary; use numeric values present
+            # Try common keys first, then any two ints in lm matching labels
+            nr_eff = lm.get('nr') or lm.get('nt') or lm.get('v1') or lm.get(list(lm.keys())[1], None)
+            na_eff = lm.get('na') or lm.get('np') or lm.get('v2') or lm.get(list(lm.keys())[2], None)
+            # Fallback to metadata final sizes if not found
+            nr_eff = int(nr_eff) if nr_eff is not None else n_radial
+            na_eff = int(na_eff) if na_eff is not None else n_angular
+            provider.set_resolution(nr_eff, na_eff)
+            mesh_level = provider.build()
+            mesh_level.compute_matrices()
+            v_level = mesh_level.v
+            data = load_pyslsqp_internal_data(internal_data_file)
+            if data:
+                results.append({
+                    'internal_data_file': internal_data_file,
+                    'v': v_level
+                })
+    else:
+        # Fallback: parse from filename tokens (old/new)
+        for internal_data_file in internal_data_files:
+            level, nr_level, na_level = parse_level_mesh_from_name(internal_data_file)
+            nr_eff = nr_level if nr_level is not None else n_radial
+            na_eff = na_level if na_level is not None else n_angular
+            # Use provider (assume ring if unknown)
+            provider = RingMeshProvider(n_radial, n_angular, r_inner, r_outer)
+            provider.set_resolution(nr_eff, na_eff)
+            mesh_level = provider.build()
+            mesh_level.compute_matrices()
+            v_level = mesh_level.v
+            theoretical_total_area = provider.theoretical_total_area()
+            data = load_pyslsqp_internal_data(internal_data_file)
+            if data:
+                results.append({
+                    'internal_data_file': internal_data_file,
+                    'v': v_level
+                })
+     
     constraint_data = extract_constraint_evolution_from_pyslsqp_data(results, n_partitions, logger)
     # Compute last-level unity violations and iteration offset for plotting
     last_internal_file = internal_data_files[-1]
@@ -713,6 +763,19 @@ def analyze_optimization_run(results_dir: str, output_dir: str = None):
     unity_last_start = level_boundaries[-2] if len(level_boundaries) > 1 else 0
     
     # Create optimization metrics plot
+    # Build common title from metadata when available
+    title_labels = metadata.get('input_parameters', {}).get('resolution_labels') or ['v1', 'v2']
+    label1 = title_labels[0]
+    label2 = title_labels[1] if len(title_labels) > 1 else 'v2'
+    last_level = levels_meta[-1] if isinstance(levels_meta, list) and levels_meta else {}
+    var1_val = int(last_level.get(label1, mesh_params.get('n_radial', 0)))
+    var2_val = int(last_level.get(label2, mesh_params.get('n_angular', 0)))
+    optimizer_name = metadata.get('optimizer') or 'PySLSQP'
+    lam = metadata.get('input_parameters', {}).get('lambda_penalty')
+    seed = metadata.get('input_parameters', {}).get('seed')
+    use_analytic_flag = metadata.get('input_parameters', {}).get('use_analytic')
+    from src.plot_utils import build_plot_title
+    metrics_title = build_plot_title(optimizer_name, surface, label1, var1_val, label2, var2_val, lam, seed, use_analytic_flag, prefix='Optimization Metrics')
     plot_refinement_optimization_metrics(
         energies, grad_norms, constraints, steps, level_boundaries,
         save_path=os.path.join(output_dir, 'refinement_optimization_metrics.png'),
@@ -720,6 +783,7 @@ def analyze_optimization_run(results_dir: str, output_dir: str = None):
     )
     
     # Create constraint evolution plot
+    constraint_title = build_plot_title(optimizer_name, surface, label1, var1_val, label2, var2_val, lam, seed, use_analytic_flag, prefix='Constraint Evolution')
     plot_constraint_evolution(
         constraint_data, level_boundaries,
         save_path=os.path.join(output_dir, 'constraint_evolution.png'),
@@ -731,6 +795,7 @@ def analyze_optimization_run(results_dir: str, output_dir: str = None):
         use_analytic=metadata.get('input_parameters', {}).get('use_analytic'),
         unity_last_level=unity_last_level,
         unity_last_start=unity_last_start,
+        theoretical_total_area=theoretical_total_area,
         logger=logger
     )
     
