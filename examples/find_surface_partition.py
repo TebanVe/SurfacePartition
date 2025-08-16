@@ -138,6 +138,21 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 		f.create_dataset('vertices', data=mesh.vertices)
 		f.create_dataset('faces', data=mesh.faces, dtype='i4')
 		f.attrs['n_partitions'] = config.n_partitions
+		# Title/metadata attributes for surface-agnostic visualization
+		f.attrs['surface'] = surface
+		f.attrs['resolution_labels'] = [label1, label2]
+		# Last-level resolution values
+		if levels_meta:
+			last_level = levels_meta[-1]
+			f.attrs['var1'] = int(last_level.get(label1, provider.get_resolution()[0]))
+			f.attrs['var2'] = int(last_level.get(label2, provider.get_resolution()[1]))
+		else:
+			f.attrs['var1'] = int(provider.get_resolution()[0])
+			f.attrs['var2'] = int(provider.get_resolution()[1])
+		f.attrs['lambda_penalty'] = float(getattr(config, 'lambda_penalty', 0.0))
+		f.attrs['seed'] = int(config.seed)
+		f.attrs['optimizer'] = 'PySLSQP'
+		f.attrs['use_analytic'] = bool(getattr(config, 'use_analytic', True))
 
 	# Save metadata
 	meta = {
