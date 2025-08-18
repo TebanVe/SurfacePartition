@@ -69,8 +69,12 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 		epsilon = np.sqrt(stats['mean_triangle_area']) if stats['mean_triangle_area'] > 0 else 1e-2
 		logger.info(f"epsilon set to sqrt(mean_triangle_area) = {epsilon:.3e}")
 
-		total_area = getattr(provider, 'theoretical_total_area', None)
-		total_area = provider.theoretical_total_area() if callable(total_area) else float(np.sum(mesh.v))
+		# Choose total_area for constraints
+		if getattr(config, 'use_discrete_area_for_constraints', True):
+			total_area = float(np.sum(mesh.v))
+		else:
+			theoretical = getattr(provider, 'theoretical_total_area', None)
+			total_area = provider.theoretical_total_area() if callable(theoretical) else float(np.sum(mesh.v))
 
 		optimizer_name = 'PySLSQP' if getattr(config, 'optimizer_type', 'pyslsqp') == 'pyslsqp' else 'PGD'
 		if optimizer_name == 'PySLSQP':
@@ -198,6 +202,7 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 			'surface': surface,
 			'resolution_labels': [label1, label2],
 			'resolution_summary': [v1_info, v2_info],
+			'use_discrete_area_for_constraints': bool(getattr(config, 'use_discrete_area_for_constraints', True)),
 		},
 		'levels': levels_meta,
 		'final_mesh_stats': mesh.get_mesh_statistics(),

@@ -17,6 +17,9 @@ slsqp_disp: false
 # Optimizer selection
 optimizer_type: pgd  # options: pyslsqp or pgd
 
+# Use discrete area (Σv) for constraints rather than theoretical area
+use_discrete_area_for_constraints: true
+
 # Optimization parametersJeez
 starget: 1.0
 c: 0.5
@@ -28,8 +31,8 @@ seed: 42
 pgd_step0: 1.0
 pgd_armijo_c: 0.0001
 pgd_backtrack_rho: 0.5
-pgd_projection_max_iter: 100
-pgd_projection_tol: 1.0e-08
+pgd_projection_max_iter: 200
+pgd_projection_tol: 1.0e-10
 
 # Refinement parameters
 refinement_levels: 1

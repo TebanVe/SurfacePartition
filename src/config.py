@@ -22,6 +22,10 @@ class Config:
 		# Optimizer selection
 		self.optimizer_type = 'pyslsqp'  # Options: 'pyslsqp' or 'pgd'
 		
+		# Choose constraint area source
+		# True: use discrete area (Σv) for constraints; False: use theoretical area
+		self.use_discrete_area_for_constraints = True
+		
 		# Optimization parameters
 		self.starget = 1.0
 		self.c = 0.5  # Armijo condition parameter

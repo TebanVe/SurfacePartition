@@ -201,13 +201,8 @@ class ProjectedGradientOptimizer:
 			summary_fh.write("MAJOR NFEV NGEV OBJFUN GNORM CNORM FEAS OPT STEP\n")
 
 			for k in range(maxiter):
-				# Evaluate gradient and constraints
+				# Gradient at current x
 				g = self.compute_gradient(x)
-				gnorm = float(np.linalg.norm(g))
-				cvec = self.constraint_fun(x)
-				cnorm = float(np.linalg.norm(cvec))
-				feas = float(np.max(np.abs(cvec))) if cvec.size > 0 else 0.0
-
 				# Backtracking line search
 				step = float(step0)
 				accepted = False
@@ -230,9 +225,16 @@ class ProjectedGradientOptimizer:
 						# Unable to make progress
 						break
 
-				# Save iteration
-				self._save_iteration_h5(h5f, k, x, g, E, cvec)
-				self._append_summary_line(summary_fh, k, E, gnorm, cnorm, feas, step)
+				# Recompute gradient and constraints at the accepted iterate (or current if not accepted)
+				g_post = self.compute_gradient(x)
+				cvec_post = self.constraint_fun(x)
+				gnorm_post = float(np.linalg.norm(g_post))
+				cnorm_post = float(np.linalg.norm(cvec_post))
+				feas_post = float(np.max(np.abs(cvec_post))) if cvec_post.size > 0 else 0.0
+
+				# Save iteration (post-accept values)
+				self._save_iteration_h5(h5f, k, x, g_post, E, cvec_post)
+				self._append_summary_line(summary_fh, k, E, gnorm_post, cnorm_post, feas_post, step)
 				summary_fh.flush()
 				h5f.flush()
 
