@@ -328,7 +328,8 @@ def plot_refinement_optimization_metrics(energies: List[float], grad_norms: List
                                        n_angular_info: Optional[str] = None,
                                        lambda_penalty: Optional[float] = None,
                                        seed: Optional[int] = None,
-                                       use_analytic: Optional[bool] = None):
+                                       use_analytic: Optional[bool] = None,
+                                       title_override: Optional[str] = None):
     """
     Create 2x2 grid of optimization metrics plots.
     
@@ -386,23 +387,25 @@ def plot_refinement_optimization_metrics(energies: List[float], grad_norms: List
             for ax in axes.flat:
                 ax.axvline(x=boundary, color='k', linestyle='--', alpha=0.5)
     
-    # Add title with parameters
-    title_parts = []
-    if n_partitions:
-        title_parts.append(f"n_partitions={n_partitions}")
-    if n_radial_info:
-        title_parts.append(f"n_radial={n_radial_info}")
-    if n_angular_info:
-        title_parts.append(f"n_angular={n_angular_info}")
-    if lambda_penalty is not None:
-        title_parts.append(f"lambda={lambda_penalty}")
-    if seed:
-        title_parts.append(f"seed={seed}")
-    if use_analytic is not None:
-        title_parts.append(f"analytic_gradients={'yes' if use_analytic else 'no'}")
-    
-    if title_parts:
-        fig.suptitle(f"PySLSQP Optimization Metrics: {', '.join(title_parts)}", fontsize=14)
+    # Title
+    if title_override:
+        fig.suptitle(title_override, fontsize=14)
+    else:
+        title_parts = []
+        if n_partitions:
+            title_parts.append(f"n_partitions={n_partitions}")
+        if n_radial_info:
+            title_parts.append(f"n_radial={n_radial_info}")
+        if n_angular_info:
+            title_parts.append(f"n_angular={n_angular_info}")
+        if lambda_penalty is not None:
+            title_parts.append(f"lambda={lambda_penalty}")
+        if seed:
+            title_parts.append(f"seed={seed}")
+        if use_analytic is not None:
+            title_parts.append(f"analytic_gradients={'yes' if use_analytic else 'no'}")
+        if title_parts:
+            fig.suptitle(f"PySLSQP Optimization Metrics: {', '.join(title_parts)}", fontsize=14)
     
     plt.tight_layout()
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
@@ -422,6 +425,7 @@ def plot_constraint_evolution(constraint_data: Dict, level_boundaries: List[int]
                             unity_last_level: Optional[np.ndarray] = None,
                             unity_last_start: Optional[int] = None,
                             theoretical_total_area: Optional[float] = None,
+                            title_override: Optional[str] = None,
                             logger=None):
     """
     Create 2x2 grid of constraint evolution plots.
@@ -581,23 +585,25 @@ def plot_constraint_evolution(constraint_data: Dict, level_boundaries: List[int]
         for ax in axes.flat:
             ax.axvline(x=boundary, color='k', linestyle='--', alpha=0.5)
     
-    # Add title with parameters
-    title_parts = []
-    if n_partitions:
-        title_parts.append(f"n_partitions={n_partitions}")
-    if n_radial_info:
-        title_parts.append(f"n_radial={n_radial_info}")
-    if n_angular_info:
-        title_parts.append(f"n_angular={n_angular_info}")
-    if lambda_penalty is not None:
-        title_parts.append(f"lambda={lambda_penalty}")
-    if seed:
-        title_parts.append(f"seed={seed}")
-    if use_analytic is not None:
-        title_parts.append(f"analytic_gradients={'yes' if use_analytic else 'no'}")
-    
-    if title_parts:
-        fig.suptitle(f"PySLSQP Constraint Evolution: {', '.join(title_parts)}", fontsize=16)
+    # Title
+    if title_override:
+        fig.suptitle(title_override, fontsize=16)
+    else:
+        title_parts = []
+        if n_partitions:
+            title_parts.append(f"n_partitions={n_partitions}")
+        if n_radial_info:
+            title_parts.append(f"n_radial={n_radial_info}")
+        if n_angular_info:
+            title_parts.append(f"n_angular={n_angular_info}")
+        if lambda_penalty is not None:
+            title_parts.append(f"lambda={lambda_penalty}")
+        if seed:
+            title_parts.append(f"seed={seed}")
+        if use_analytic is not None:
+            title_parts.append(f"analytic_gradients={'yes' if use_analytic else 'no'}")
+        if title_parts:
+            fig.suptitle(f"PySLSQP Constraint Evolution: {', '.join(title_parts)}", fontsize=16)
     
     plt.tight_layout(rect=[0, 0, 1, 0.96])
     plt.savefig(save_path)
@@ -779,7 +785,8 @@ def analyze_optimization_run(results_dir: str, output_dir: str = None):
     plot_refinement_optimization_metrics(
         energies, grad_norms, constraints, steps, level_boundaries,
         save_path=os.path.join(output_dir, 'refinement_optimization_metrics.png'),
-        use_analytic=metadata.get('input_parameters', {}).get('use_analytic')
+        use_analytic=metadata.get('input_parameters', {}).get('use_analytic'),
+        title_override=metrics_title
     )
     
     # Create constraint evolution plot
@@ -796,6 +803,7 @@ def analyze_optimization_run(results_dir: str, output_dir: str = None):
         unity_last_level=unity_last_level,
         unity_last_start=unity_last_start,
         theoretical_total_area=theoretical_total_area,
+        title_override=constraint_title,
         logger=logger
     )
     
