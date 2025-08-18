@@ -1,0 +1,32 @@
+datetime: '20250813_194800'
+final_energy: 4.955453935480545
+final_epsilon: 0.16283889060815765
+final_iterations: 50
+final_mesh_stats:
+  dim: 2
+  max_triangle_area: 0.035355339059327376
+  mean_triangle_area: 0.026516504294495535
+  min_triangle_area: 0.01767766952966368
+  n_triangles: 80
+  n_vertices: 48
+  total_area: 2.121320343559643
+hostname: MacBookPro.lan
+input_parameters:
+  lambda_penalty: 0.0
+  refinement_levels: 1
+  resolution_labels:
+  - nr
+  - na
+  resolution_summary:
+  - '6'
+  - '8'
+  seed: 42
+  surface: ring
+  use_analytic: true
+optimizer: PySLSQP
+platform: macOS-15.4-x86_64-i386-64bit
+python_version: 3.9.7
+run_time_seconds: 0.5319900512695312
+solution_path: /Users/estebanvelez/Documents/Research/ManifoldPartiton/RingTest/results/surface_part2_surfring_v1nr6_v2na8_lam0.0_seed42_20250813_194800.h5
+success: false
+user: estebanvelez

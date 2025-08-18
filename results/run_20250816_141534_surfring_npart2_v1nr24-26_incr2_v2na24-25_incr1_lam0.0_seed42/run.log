@@ -1,0 +1,112 @@
+2025-08-16 14:15:34,646 - __main__ - INFO - Starting surface partition optimization with 2 refinement levels
+2025-08-16 14:15:34,646 - __main__ - INFO - ================================================================================
+2025-08-16 14:15:34,646 - __main__ - INFO - Refinement Level 1/2
+2025-08-16 14:15:34,646 - __main__ - INFO - ================================================================================
+2025-08-16 14:15:34,647 - surfaces.ring - INFO - Building ring TriMesh: nr=24, na=24, r_in=0.5, r_out=1.0
+2025-08-16 14:15:34,666 - core.tri_mesh - INFO - Starting matrix computation
+2025-08-16 14:15:34,832 - core.tri_mesh - INFO - Matrix computation completed: M (576, 576), K (576, 576)
+2025-08-16 14:15:34,833 - core.tri_mesh - INFO - matrix computation completed: 0.167s, memory: 0.96MB
+2025-08-16 14:15:34,834 - __main__ - INFO - epsilon set to sqrt(mean_triangle_area) = 4.593e-02
+2025-08-16 14:15:34,835 - projection_iterative - INFO - Creating initial condition: 576x2, method=iterative
+2025-08-16 14:15:34,837 - projection_iterative - INFO - Projection converged after 3 iterations
+2025-08-16 14:15:34,837 - projection_iterative - INFO - Final errors: row=3.85e-09, area=1.00e-10
+2025-08-16 14:15:34,837 - core.pyslsqp_optimizer - INFO - Starting optimization
+2025-08-16 14:15:34,837 - __main__ - INFO - Processing initial condition...
+2025-08-16 14:15:34,841 - __main__ - INFO - ✓ Initial condition validation passed
+2025-08-16 14:15:34,842 - __main__ - INFO - Starting PySLSQP optimization with analytic gradients...
+2025-08-16 14:29:51,187 - __main__ - INFO -   Iteration 50: Energy=2.507819e+01
+2025-08-16 14:29:51,196 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 14:29:51,204 - __main__ - INFO -     Current partition areas: [1.18078742 1.14231895]
+2025-08-16 14:43:59,476 - __main__ - INFO -   Iteration 100: Energy=2.507918e+01
+2025-08-16 14:43:59,476 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 14:43:59,476 - __main__ - INFO -     Current partition areas: [1.1837625 1.1397222]
+2025-08-16 14:56:15,473 - __main__ - INFO -   Iteration 150: Energy=2.508408e+01
+2025-08-16 14:56:15,473 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 14:56:15,473 - __main__ - INFO -     Current partition areas: [1.18444806 1.13918618]
+2025-08-16 15:08:30,305 - __main__ - INFO -   Iteration 200: Energy=2.507197e+01
+2025-08-16 15:08:30,305 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 15:08:30,305 - __main__ - INFO -     Current partition areas: [1.18424888 1.1394761 ]
+2025-08-16 15:20:45,856 - __main__ - INFO -   Iteration 250: Energy=2.500284e+01
+2025-08-16 15:20:45,856 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 15:20:45,857 - __main__ - INFO -     Current partition areas: [1.18354332 1.14033319]
+2025-08-16 15:33:02,814 - __main__ - INFO -   Iteration 300: Energy=2.503980e+01
+2025-08-16 15:33:02,814 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 15:33:02,814 - __main__ - INFO -     Current partition areas: [1.1843235 1.1397676]
+2025-08-16 15:45:18,962 - __main__ - INFO -   Iteration 350: Energy=2.511098e+01
+2025-08-16 15:45:18,962 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 15:45:18,963 - __main__ - INFO -     Current partition areas: [1.18475612 1.13925568]
+2025-08-16 15:57:33,955 - __main__ - INFO -   Iteration 400: Energy=2.498838e+01
+2025-08-16 15:57:33,955 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 15:57:33,955 - __main__ - INFO -     Current partition areas: [1.18359331 1.14056936]
+2025-08-16 16:09:50,060 - __main__ - INFO -   Iteration 450: Energy=2.502782e+01
+2025-08-16 16:09:50,060 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 16:09:50,060 - __main__ - INFO -     Current partition areas: [1.18411006 1.14013248]
+2025-08-16 16:22:06,175 - __main__ - INFO -   Iteration 500: Energy=2.498724e+01
+2025-08-16 16:22:06,175 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 16:22:06,175 - __main__ - INFO -     Current partition areas: [1.18362712 1.14062866]
+2025-08-16 16:34:21,795 - __main__ - INFO -   Iteration 550: Energy=2.505119e+01
+2025-08-16 16:34:21,796 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 16:34:21,796 - __main__ - INFO -     Current partition areas: [1.18432843 1.13998197]
+2025-08-16 16:46:22,900 - __main__ - INFO -   Iteration 600: Energy=2.545842e+01
+2025-08-16 16:46:22,902 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 16:46:22,902 - __main__ - INFO -     Current partition areas: [1.16773965 1.15734085]
+2025-08-16 16:46:23,120 - __main__ - INFO - PySLSQP optimization completed: Success=False
+2025-08-16 16:46:23,128 - __main__ - INFO -   Summary saved to: results/run_20250816_141534_surfring_npart2_v1nr24-26_incr2_v2na24-25_incr1_lam0.0_seed42/pyslsqp_part2_v1nr24_v2na24_level0_summary.out
+2025-08-16 16:46:23,128 - __main__ - INFO -   Internal data saved to: results/run_20250816_141534_surfring_npart2_v1nr24-26_incr2_v2na24-25_incr1_lam0.0_seed42/pyslsqp_part2_v1nr24_v2na24_level0_internal_data.hdf5
+2025-08-16 16:46:23,128 - __main__ - WARNING - Returning last valid iterate before unsuccessful termination.
+2025-08-16 16:46:23,135 - core.pyslsqp_optimizer - INFO - optimization completed: 9048.297s, memory: 87.65MB
+2025-08-16 16:46:23,138 - __main__ - INFO - ================================================================================
+2025-08-16 16:46:23,138 - __main__ - INFO - Refinement Level 2/2
+2025-08-16 16:46:23,139 - __main__ - INFO - ================================================================================
+2025-08-16 16:46:23,139 - surfaces.ring - INFO - Building ring TriMesh: nr=26, na=25, r_in=0.5, r_out=1.0
+2025-08-16 16:46:23,144 - core.tri_mesh - INFO - Starting matrix computation
+2025-08-16 16:46:23,311 - core.tri_mesh - INFO - Matrix computation completed: M (650, 650), K (650, 650)
+2025-08-16 16:46:23,312 - core.tri_mesh - INFO - matrix computation completed: 0.168s, memory: 0.93MB
+2025-08-16 16:46:23,312 - __main__ - INFO - epsilon set to sqrt(mean_triangle_area) = 4.319e-02
+2025-08-16 16:46:23,332 - projection_iterative - INFO - Projection converged after 3 iterations
+2025-08-16 16:46:23,332 - projection_iterative - INFO - Final errors: row=9.37e-10, area=1.00e-10
+2025-08-16 16:46:23,332 - core.pyslsqp_optimizer - INFO - Starting optimization
+2025-08-16 16:46:23,332 - __main__ - INFO - Processing initial condition...
+2025-08-16 16:46:23,337 - __main__ - INFO - ✓ Initial condition validation passed
+2025-08-16 16:46:23,337 - __main__ - INFO - Starting PySLSQP optimization with analytic gradients...
+2025-08-16 16:46:43,086 - __main__ - INFO -   Iteration 0: Energy=2.738433e+01
+2025-08-16 16:46:43,087 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 16:46:43,087 - __main__ - INFO -     Current partition areas: [1.16348725 1.16403195]
+2025-08-16 17:05:39,069 - __main__ - INFO -   Iteration 50: Energy=2.479452e+01
+2025-08-16 17:05:39,070 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 17:05:39,070 - __main__ - INFO -     Current partition areas: [1.16357119 1.16333765]
+2025-08-16 17:24:36,650 - __main__ - INFO -   Iteration 100: Energy=2.479884e+01
+2025-08-16 17:24:36,652 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 17:24:36,652 - __main__ - INFO -     Current partition areas: [1.16352183 1.16338466]
+2025-08-16 17:43:34,501 - __main__ - INFO -   Iteration 150: Energy=2.479692e+01
+2025-08-16 17:43:34,502 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 17:43:34,502 - __main__ - INFO -     Current partition areas: [1.16356332 1.16334473]
+2025-08-16 18:02:32,530 - __main__ - INFO -   Iteration 200: Energy=2.479432e+01
+2025-08-16 18:02:32,530 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 18:02:32,531 - __main__ - INFO -     Current partition areas: [1.16352176 1.16345304]
+2025-08-16 18:21:30,084 - __main__ - INFO -   Iteration 250: Energy=2.480403e+01
+2025-08-16 18:21:30,085 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 18:21:30,085 - __main__ - INFO -     Current partition areas: [1.16348926 1.16346743]
+2025-08-16 18:40:30,566 - __main__ - INFO -   Iteration 300: Energy=2.479070e+01
+2025-08-16 18:40:30,567 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 18:40:30,567 - __main__ - INFO -     Current partition areas: [1.16355069 1.16342082]
+2025-08-16 18:59:28,131 - __main__ - INFO -   Iteration 350: Energy=2.479889e+01
+2025-08-16 18:59:28,132 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 18:59:28,133 - __main__ - INFO -     Current partition areas: [1.16355609 1.16341092]
+2025-08-16 19:19:41,958 - __main__ - INFO -   Iteration 400: Energy=2.479785e+01
+2025-08-16 19:19:41,959 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 19:19:41,959 - __main__ - INFO -     Current partition areas: [1.16357886 1.16340987]
+2025-08-16 19:38:40,324 - __main__ - INFO -   Iteration 450: Energy=2.479107e+01
+2025-08-16 19:38:40,325 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 19:38:40,325 - __main__ - INFO -     Current partition areas: [1.16357214 1.16343303]
+2025-08-16 19:57:36,930 - __main__ - INFO -   Iteration 500: Energy=2.479550e+01
+2025-08-16 19:57:36,931 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 19:57:36,931 - __main__ - INFO -     Current partition areas: [1.16356061 1.16341175]
+2025-08-16 20:16:34,292 - __main__ - INFO -   Iteration 550: Energy=2.478756e+01
+2025-08-16 20:16:34,293 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-16 20:16:34,293 - __main__ - INFO -     Current partition areas: [1.16357338 1.16338918]
+2025-08-16 20:34:45,081 - __main__ - INFO - PySLSQP optimization completed: Success=False
+2025-08-16 20:34:45,082 - __main__ - INFO -   Summary saved to: results/run_20250816_141534_surfring_npart2_v1nr24-26_incr2_v2na24-25_incr1_lam0.0_seed42/pyslsqp_part2_v1nr26_v2na25_level1_summary.out
+2025-08-16 20:34:45,082 - __main__ - INFO -   Internal data saved to: results/run_20250816_141534_surfring_npart2_v1nr24-26_incr2_v2na24-25_incr1_lam0.0_seed42/pyslsqp_part2_v1nr26_v2na25_level1_internal_data.hdf5
+2025-08-16 20:34:45,082 - __main__ - WARNING - Returning last valid iterate before unsuccessful termination.
+2025-08-16 20:34:45,090 - core.pyslsqp_optimizer - INFO - optimization completed: 13701.758s, memory: 103.64MB

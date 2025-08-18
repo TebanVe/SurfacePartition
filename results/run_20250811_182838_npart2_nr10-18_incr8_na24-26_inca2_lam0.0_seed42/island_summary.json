@@ -1,0 +1,20 @@
+{
+  "std_u1": 0.20590163223161845,
+  "std_u2": 0.203912856715689,
+  "mean_confidence": 0.6651046755484804,
+  "median_confidence": 0.6381334084157629,
+  "mean_entropy": 0.5989728293209025,
+  "median_entropy": 0.6545076763264551,
+  "delta_mean": 0.01143587733343441,
+  "delta_std": 0.40950389685789773,
+  "ambiguity_fraction_tau": 0.1,
+  "ambiguity_fraction": 0.1858974358974359,
+  "num_isolines": 1,
+  "top_loops": [
+    {
+      "num_points": 487,
+      "length": 31.942383824585384,
+      "area": 0.42909285259618035
+    }
+  ]
+}

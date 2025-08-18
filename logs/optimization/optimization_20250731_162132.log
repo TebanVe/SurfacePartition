@@ -1,0 +1,4 @@
+2025-07-31 16:21:32 - optimization - DEBUG - Starting optimization iteration 1
+2025-07-31 16:21:32 - optimization - INFO - Energy value: 2.356194
+2025-07-31 16:21:32 - optimization - DEBUG - Gradient computed successfully
+2025-07-31 16:21:32 - optimization - INFO - Convergence achieved

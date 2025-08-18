@@ -1,13 +1,13 @@
 # Ring mesh parameters for testing
-n_radial: 18
-n_angular: 30
+n_radial: 50
+n_angular: 50
 r_inner: 0.5
 r_outer: 1.0
 
 # Optimization parameters (for future use)
 n_partitions: 2
 lambda_penalty: 0.0
-max_iter: 100
+max_iter: 3000
 
 # SLSQP parameters
 tol: 1e-6
@@ -15,7 +15,7 @@ slsqp_eps: 1e-8
 slsqp_disp: false
 
 # Optimizer selection
-optimizer_type: pyslsqp
+optimizer_type: pgd  # options: pyslsqp or pgd
 
 # Optimization parametersJeez
 starget: 1.0
@@ -24,15 +24,22 @@ rho: 0.5
 m: 10
 seed: 42
 
+# PGD parameters (used when optimizer_type: pgd)
+pgd_step0: 1.0
+pgd_armijo_c: 0.0001
+pgd_backtrack_rho: 0.5
+pgd_projection_max_iter: 100
+pgd_projection_tol: 1.0e-08
+
 # Refinement parameters
-refinement_levels: 3
-n_radial_increment: 10
-n_angular_increment: 8
+refinement_levels: 1
+n_radial_increment: 5
+n_angular_increment: 5
 use_analytic: true
 
 # Mesh refinement convergence criteria
 refine_patience: 30
-refine_delta_energy: 1e-4
+refine_delta_energy: 1e-6
 refine_grad_tol: 1e-2
 refine_constraint_tol: 1e-2
 

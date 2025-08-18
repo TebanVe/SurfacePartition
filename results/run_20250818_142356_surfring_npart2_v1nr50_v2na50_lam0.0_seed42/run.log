@@ -1,0 +1,95 @@
+2025-08-18 14:23:56,357 - __main__ - INFO - Starting surface partition optimization with 1 refinement levels
+2025-08-18 14:23:56,357 - __main__ - INFO - ================================================================================
+2025-08-18 14:23:56,357 - __main__ - INFO - Refinement Level 1/1
+2025-08-18 14:23:56,357 - __main__ - INFO - ================================================================================
+2025-08-18 14:23:56,357 - surfaces.ring - INFO - Building ring TriMesh: nr=50, na=50, r_in=0.5, r_out=1.0
+2025-08-18 14:23:56,385 - core.tri_mesh - INFO - Starting matrix computation
+2025-08-18 14:23:57,034 - core.tri_mesh - INFO - Matrix computation completed: M (2500, 2500), K (2500, 2500)
+2025-08-18 14:23:57,035 - core.tri_mesh - INFO - matrix computation completed: 0.650s, memory: 1.82MB
+2025-08-18 14:23:57,066 - __main__ - INFO - epsilon set to sqrt(mean_triangle_area) = 2.190e-02
+2025-08-18 14:23:57,104 - projection_iterative - INFO - Creating initial condition: 2500x2, method=iterative
+2025-08-18 14:23:57,106 - projection_iterative - INFO - Projection converged after 2 iterations
+2025-08-18 14:23:57,106 - projection_iterative - INFO - Final errors: row=9.14e-10, area=1.00e-10
+2025-08-18 14:23:57,109 - __main__ - INFO - Starting PGD optimization
+2025-08-18 14:23:57,115 - __main__ - INFO -   Iteration 0: Energy=3.555919e+01
+2025-08-18 14:23:57,115 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:57,116 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:23:57,222 - __main__ - INFO -   Iteration 50: Energy=8.714957e-01
+2025-08-18 14:23:57,222 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:57,223 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:23:57,327 - __main__ - INFO -   Iteration 100: Energy=8.175308e-01
+2025-08-18 14:23:57,327 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:57,328 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:23:57,429 - __main__ - INFO -   Iteration 150: Energy=7.660634e-01
+2025-08-18 14:23:57,429 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:57,429 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:23:57,535 - __main__ - INFO -   Iteration 200: Energy=6.966503e-01
+2025-08-18 14:23:57,536 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:57,536 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:23:57,636 - __main__ - INFO -   Iteration 250: Energy=6.060443e-01
+2025-08-18 14:23:57,636 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:57,637 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:23:57,738 - __main__ - INFO -   Iteration 300: Energy=5.144810e-01
+2025-08-18 14:23:57,738 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:57,738 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:23:57,848 - __main__ - INFO -   Iteration 350: Energy=4.362186e-01
+2025-08-18 14:23:57,848 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:57,849 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:23:57,954 - __main__ - INFO -   Iteration 400: Energy=3.751991e-01
+2025-08-18 14:23:57,955 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:57,955 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:23:58,068 - __main__ - INFO -   Iteration 450: Energy=3.331971e-01
+2025-08-18 14:23:58,068 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:58,069 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:23:58,173 - __main__ - INFO -   Iteration 500: Energy=3.063281e-01
+2025-08-18 14:23:58,174 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:58,174 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:23:58,289 - __main__ - INFO -   Iteration 550: Energy=2.835469e-01
+2025-08-18 14:23:58,289 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:58,290 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:23:58,412 - __main__ - INFO -   Iteration 600: Energy=2.629151e-01
+2025-08-18 14:23:58,412 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:58,412 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:23:58,533 - __main__ - INFO -   Iteration 650: Energy=2.431391e-01
+2025-08-18 14:23:58,533 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:58,533 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:23:58,656 - __main__ - INFO -   Iteration 700: Energy=2.256477e-01
+2025-08-18 14:23:58,656 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:58,656 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:23:58,773 - __main__ - INFO -   Iteration 750: Energy=2.091627e-01
+2025-08-18 14:23:58,773 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:58,773 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:23:58,895 - __main__ - INFO -   Iteration 800: Energy=1.946670e-01
+2025-08-18 14:23:58,895 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:58,895 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:23:59,013 - __main__ - INFO -   Iteration 850: Energy=1.824711e-01
+2025-08-18 14:23:59,013 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:59,013 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:23:59,151 - __main__ - INFO -   Iteration 900: Energy=1.748724e-01
+2025-08-18 14:23:59,151 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:59,151 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:23:59,352 - __main__ - INFO -   Iteration 950: Energy=1.705954e-01
+2025-08-18 14:23:59,352 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:59,352 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:23:59,600 - __main__ - INFO -   Iteration 1000: Energy=1.684484e-01
+2025-08-18 14:23:59,600 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:59,600 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:23:59,869 - __main__ - INFO -   Iteration 1050: Energy=1.668484e-01
+2025-08-18 14:23:59,870 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:23:59,870 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:24:00,187 - __main__ - INFO -   Iteration 1100: Energy=1.659794e-01
+2025-08-18 14:24:00,187 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-18 14:24:00,187 - __main__ - INFO -     Current partition areas: [1.17499906 1.17499906]
+2025-08-18 14:24:00,413 - __main__ - INFO - Refinement triggered at iteration 1136
+2025-08-18 14:24:00,510 - __main__ - INFO - Refinement triggered early at level 1
+2025-08-18 14:24:00,523 - __main__ - INFO - Results for level 1:
+2025-08-18 14:24:00,523 - __main__ - INFO -   Energy: 1.653905e-01
+2025-08-18 14:24:00,523 - __main__ - INFO -   Iterations: 1137
+2025-08-18 14:24:00,523 - __main__ - INFO -   Time: 3.40s
+2025-08-18 14:24:00,523 - __main__ - INFO -   Success: False
+2025-08-18 14:24:00,560 - __main__ - INFO - Refinement Summary:
+2025-08-18 14:24:00,561 - __main__ - INFO - ================================================================================
+2025-08-18 14:24:00,561 - __main__ - INFO -  Level    Mesh Size       Energy Iterations   Time (s)
+2025-08-18 14:24:00,561 - __main__ - INFO - --------------------------------------------------------------------------------
+2025-08-18 14:24:00,561 - __main__ - INFO -      1       50x50 1.653905e-01       1137       3.40
+2025-08-18 14:24:00,561 - __main__ - INFO - ✅ Solution file saved: results/run_20250818_142356_surfring_npart2_v1nr50_v2na50_lam0.0_seed42/surface_part2_surfring_v1nr50_v2na50_lam0.0_seed42_20250818_142356.h5

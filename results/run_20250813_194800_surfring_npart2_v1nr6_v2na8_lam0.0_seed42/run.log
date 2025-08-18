@@ -1,0 +1,26 @@
+2025-08-13 19:48:00,480 - __main__ - INFO - Starting surface partition optimization with 1 refinement levels
+2025-08-13 19:48:00,481 - __main__ - INFO - ================================================================================
+2025-08-13 19:48:00,481 - __main__ - INFO - Refinement Level 1/1
+2025-08-13 19:48:00,481 - __main__ - INFO - ================================================================================
+2025-08-13 19:48:00,481 - ring_mesh - INFO - Creating ring mesh: n_radial=6, n_angular=8, r_inner=0.5, r_outer=1.0
+2025-08-13 19:48:00,484 - ring_mesh - INFO - Mesh created: 48 vertices, 80 triangles
+2025-08-13 19:48:00,484 - ring_mesh - INFO - Theoretical area: 2.356194
+2025-08-13 19:48:00,510 - core.tri_mesh - INFO - Starting matrix computation
+2025-08-13 19:48:00,535 - core.tri_mesh - INFO - Matrix computation completed: M (48, 48), K (48, 48)
+2025-08-13 19:48:00,536 - core.tri_mesh - INFO - matrix computation completed: 0.025s, memory: 0.18MB
+2025-08-13 19:48:00,536 - __main__ - INFO - epsilon set to sqrt(mean_triangle_area) = 1.628e-01
+2025-08-13 19:48:00,537 - projection_iterative - INFO - Creating initial condition: 48x2, method=iterative
+2025-08-13 19:48:00,538 - projection_iterative - INFO - Projection converged after 1 iterations
+2025-08-13 19:48:00,538 - projection_iterative - INFO - Final errors: row=1.51e-10, area=1.00e-10
+2025-08-13 19:48:00,540 - core.pyslsqp_optimizer - INFO - Starting optimization
+2025-08-13 19:48:00,540 - __main__ - INFO - Processing initial condition...
+2025-08-13 19:48:00,542 - __main__ - INFO - ✓ Initial condition validation passed
+2025-08-13 19:48:00,542 - __main__ - INFO - Starting PySLSQP optimization with analytic gradients...
+2025-08-13 19:48:01,056 - __main__ - INFO -   Iteration 50: Energy=5.116297e+00
+2025-08-13 19:48:01,056 - __main__ - INFO -     Target area per partition: 1.178097e+00
+2025-08-13 19:48:01,057 - __main__ - INFO -     Current partition areas: [1.05282341 1.0408792 ]
+2025-08-13 19:48:01,070 - __main__ - INFO - PySLSQP optimization completed: Success=False
+2025-08-13 19:48:01,070 - __main__ - INFO -   Summary saved to: results/run_20250813_194800_surfring_npart2_v1nr6_v2na8_lam0.0_seed42/pyslsqp_part2_v1nr6_v2na8_level0_summary.out
+2025-08-13 19:48:01,070 - __main__ - INFO -   Internal data saved to: results/run_20250813_194800_surfring_npart2_v1nr6_v2na8_lam0.0_seed42/pyslsqp_part2_v1nr6_v2na8_level0_internal_data.hdf5
+2025-08-13 19:48:01,070 - __main__ - WARNING - Returning last valid iterate before unsuccessful termination.
+2025-08-13 19:48:01,071 - core.pyslsqp_optimizer - INFO - optimization completed: 0.531s, memory: 4.12MB

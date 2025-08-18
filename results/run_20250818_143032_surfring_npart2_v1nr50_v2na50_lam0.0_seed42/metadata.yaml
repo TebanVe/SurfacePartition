@@ -1,0 +1,39 @@
+datetime: '20250818_143032'
+final_energy: 0.16089914614829756
+final_epsilon: 0.021899576593291704
+final_iterations: 2587
+final_mesh_stats:
+  dim: 2
+  max_triangle_area: 0.0006394552732872719
+  mean_triangle_area: 0.00047959145496544994
+  min_triangle_area: 0.00031972763664363094
+  n_triangles: 4900
+  n_vertices: 2500
+  total_area: 2.349998129330709
+hostname: MacBookPro.lan
+input_parameters:
+  lambda_penalty: 0.0
+  refinement_levels: 1
+  resolution_labels:
+  - nr
+  - na
+  resolution_summary:
+  - '50'
+  - '50'
+  seed: 42
+  surface: ring
+  use_analytic: true
+levels:
+- N: 2500
+  epsilon: 0.021899576593291704
+  level: 0
+  na: 50
+  nr: 50
+  v_sum: 2.3499981293307046
+optimizer: PGD
+platform: macOS-15.4-x86_64-i386-64bit
+python_version: 3.9.7
+run_time_seconds: 12.633861303329468
+solution_path: results/run_20250818_143032_surfring_npart2_v1nr50_v2na50_lam0.0_seed42/surface_part2_surfring_v1nr50_v2na50_lam0.0_seed42_20250818_143032.h5
+success: false
+user: estebanvelez

@@ -11,6 +11,7 @@ from .plot_utils import plot_ring_mesh, plot_matrices, plot_mesh_statistics, sav
 from .logging_config import setup_logging, get_logger, log_performance, log_performance_conditional
 # Expose core optimizer
 from .core.pyslsqp_optimizer import PySLSQPOptimizer, RefinementTriggered
+from .core.pgd_optimizer import ProjectedGradientOptimizer
 from .projection_iterative import (
 	orthogonal_projection_iterative,
 	orthogonal_projection_direct,
@@ -29,6 +30,7 @@ __all__ = [
 	"log_performance",
 	"log_performance_conditional",
 	"PySLSQPOptimizer",
+	"ProjectedGradientOptimizer",
 	"RefinementTriggered",
 	"orthogonal_projection_iterative",
 	"orthogonal_projection_direct",

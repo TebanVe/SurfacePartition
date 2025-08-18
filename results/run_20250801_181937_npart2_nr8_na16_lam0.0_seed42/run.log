@@ -1,0 +1,172 @@
+2025-08-01 18:19:37,074 - __main__ - INFO - Starting ring partition optimization with 1 refinement levels
+2025-08-01 18:19:37,074 - __main__ - INFO - Results will be saved in: results/run_20250801_181937_npart2_nr8_na16_lam0.0_seed42
+2025-08-01 18:19:37,074 - __main__ - INFO - ================================================================================
+2025-08-01 18:19:37,074 - __main__ - INFO - Refinement Level 1/1
+2025-08-01 18:19:37,074 - __main__ - INFO - ================================================================================
+2025-08-01 18:19:37,074 - __main__ - INFO - Creating mesh with parameters: {'n_radial': 8, 'n_angular': 16, 'r_inner': 0.5, 'r_outer': 1.0}
+2025-08-01 18:19:37,075 - ring_mesh - INFO - Creating ring mesh: n_radial=8, n_angular=16, r_inner=0.5, r_outer=1.0
+2025-08-01 18:19:37,085 - ring_mesh - INFO - Mesh created: 128 vertices, 224 triangles
+2025-08-01 18:19:37,085 - ring_mesh - INFO - Theoretical area: 2.356194
+2025-08-01 18:19:37,086 - __main__ - INFO - Mesh created: 128 vertices, 224 triangles
+2025-08-01 18:19:37,086 - __main__ - INFO - Computing FEM matrices...
+2025-08-01 18:19:37,105 - ring_mesh - INFO - Starting matrix computation
+2025-08-01 18:19:37,105 - ring_mesh - INFO - Starting matrix computation...
+2025-08-01 18:19:37,154 - ring_mesh - INFO - Matrix computation completed: Mass matrix (128, 128), Stiffness matrix (128, 128)
+2025-08-01 18:19:37,155 - ring_mesh - INFO - matrix computation completed: 0.049s, memory: 0.24MB
+2025-08-01 18:19:37,155 - __main__ - INFO - Matrices computed successfully
+2025-08-01 18:19:37,155 - ring_mesh - INFO - Mesh statistics: 128 vertices, 224 triangles, area=2.296101
+2025-08-01 18:19:37,155 - __main__ - INFO - Setting epsilon to sqrt(mean_triangle_area): 1.012445e-01
+2025-08-01 18:19:37,155 - pyslsqp_optimizer - INFO - PySLSQPOptimizer initialized:
+2025-08-01 18:19:37,156 - pyslsqp_optimizer - INFO -   Ring: r_inner=0.500, r_outer=1.000
+2025-08-01 18:19:37,156 - pyslsqp_optimizer - INFO -   Partitions: 2
+2025-08-01 18:19:37,156 - pyslsqp_optimizer - INFO -   Epsilon: 1.01e-01
+2025-08-01 18:19:37,156 - pyslsqp_optimizer - INFO -   Theoretical area: 2.356194
+2025-08-01 18:19:37,156 - pyslsqp_optimizer - INFO -   Discretized area: 2.296101
+2025-08-01 18:19:37,157 - __main__ - INFO - PySLSQP optimizer created
+2025-08-01 18:19:37,157 - __main__ - INFO - Creating random initial condition using orthogonal projection
+2025-08-01 18:19:37,158 - projection_iterative - INFO - Creating initial condition: 128x2, method=iterative
+2025-08-01 18:19:37,159 - projection_iterative - INFO - Projection converged after 1 iterations
+2025-08-01 18:19:37,159 - projection_iterative - INFO - Final errors: row=1.08e-10, area=1.00e-10
+2025-08-01 18:19:37,160 - __main__ - INFO - Initial condition validation passed
+2025-08-01 18:19:37,160 - __main__ - INFO - Checking analytic vs finite-difference gradients...
+2025-08-01 18:19:37,160 - __main__ - INFO - Checking analytic vs finite-difference gradients...
+2025-08-01 18:19:37,271 - __main__ - WARNING - Large gradient error at point 0: 8.24e-03
+2025-08-01 18:19:37,369 - __main__ - WARNING - Large gradient error at point 1: 8.37e-03
+2025-08-01 18:19:37,464 - __main__ - WARNING - Large gradient error at point 2: 8.27e-03
+2025-08-01 18:19:37,560 - __main__ - WARNING - Large gradient error at point 3: 8.32e-03
+2025-08-01 18:19:37,652 - __main__ - WARNING - Large gradient error at point 4: 8.28e-03
+2025-08-01 18:19:37,754 - __main__ - WARNING - Large gradient error at point 5: 8.33e-03
+2025-08-01 18:19:37,847 - __main__ - WARNING - Large gradient error at point 6: 8.32e-03
+2025-08-01 18:19:37,946 - __main__ - WARNING - Large gradient error at point 7: 8.35e-03
+2025-08-01 18:19:38,035 - __main__ - WARNING - Large gradient error at point 8: 8.32e-03
+2025-08-01 18:19:38,126 - __main__ - WARNING - Large gradient error at point 9: 8.26e-03
+2025-08-01 18:19:38,126 - __main__ - INFO - Gradient check completed: avg_error=8.31e-03, max_error=8.37e-03
+2025-08-01 18:19:38,126 - __main__ - WARNING - Gradient errors are larger than expected
+2025-08-01 18:19:38,127 - pyslsqp_optimizer - INFO - Starting optimization
+2025-08-01 18:19:38,127 - pyslsqp_optimizer - INFO - Processing initial condition...
+2025-08-01 18:19:38,128 - pyslsqp_optimizer - INFO - ✓ Initial condition processed
+2025-08-01 18:19:38,128 - pyslsqp_optimizer - INFO - ✓ Initial condition validation passed
+2025-08-01 18:19:38,129 - pyslsqp_optimizer - INFO - Initial state before optimization:
+2025-08-01 18:19:38,129 - pyslsqp_optimizer - INFO -   Energy: 1.289236e+01
+2025-08-01 18:19:38,129 - pyslsqp_optimizer - INFO -   Initial condition shape: (256,)
+2025-08-01 18:19:38,129 - pyslsqp_optimizer - INFO -   Detailed optimization data will be saved to:
+2025-08-01 18:19:38,129 - pyslsqp_optimizer - INFO -     Summary: results/run_20250801_181937_npart2_nr8_na16_lam0.0_seed42/pyslsqp_part2_nt8_np16_lam0.0_seed42_level0_summary.out
+2025-08-01 18:19:38,129 - pyslsqp_optimizer - INFO -     Internal data: results/run_20250801_181937_npart2_nr8_na16_lam0.0_seed42/pyslsqp_part2_nt8_np16_lam0.0_seed42_level0_internal_data.hdf5
+2025-08-01 18:19:38,129 - pyslsqp_optimizer - INFO - Starting PySLSQP optimization with analytic gradients...
+2025-08-01 18:19:43,155 - pyslsqp_optimizer - INFO -   Iteration 50:
+2025-08-01 18:19:43,156 - pyslsqp_optimizer - INFO -     Energy: 5.084633e+00
+2025-08-01 18:19:43,156 - pyslsqp_optimizer - INFO -     Energy change: -4.388179e-03
+2025-08-01 18:19:43,156 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-01 18:19:43,157 - pyslsqp_optimizer - INFO -     Current partition areas: [1.14150664 1.1416008 ]
+2025-08-01 18:19:48,048 - pyslsqp_optimizer - INFO -   Iteration 100:
+2025-08-01 18:19:48,048 - pyslsqp_optimizer - INFO -     Energy: 5.125471e+00
+2025-08-01 18:19:48,048 - pyslsqp_optimizer - INFO -     Energy change: 9.629517e-03
+2025-08-01 18:19:48,048 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-01 18:19:48,048 - pyslsqp_optimizer - INFO -     Current partition areas: [1.14157518 1.14127372]
+2025-08-01 18:19:53,144 - pyslsqp_optimizer - INFO -   Iteration 150:
+2025-08-01 18:19:53,145 - pyslsqp_optimizer - INFO -     Energy: 5.096244e+00
+2025-08-01 18:19:53,145 - pyslsqp_optimizer - INFO -     Energy change: -1.095485e-02
+2025-08-01 18:19:53,145 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-01 18:19:53,145 - pyslsqp_optimizer - INFO -     Current partition areas: [1.14074073 1.14120155]
+2025-08-01 18:19:58,374 - pyslsqp_optimizer - INFO -   Iteration 200:
+2025-08-01 18:19:58,375 - pyslsqp_optimizer - INFO -     Energy: 5.091778e+00
+2025-08-01 18:19:58,375 - pyslsqp_optimizer - INFO -     Energy change: -1.211570e-04
+2025-08-01 18:19:58,375 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-01 18:19:58,376 - pyslsqp_optimizer - INFO -     Current partition areas: [1.14119507 1.14130773]
+2025-08-01 18:20:04,063 - pyslsqp_optimizer - INFO -   Iteration 250:
+2025-08-01 18:20:04,063 - pyslsqp_optimizer - INFO -     Energy: 5.095383e+00
+2025-08-01 18:20:04,063 - pyslsqp_optimizer - INFO -     Energy change: 2.574826e-04
+2025-08-01 18:20:04,063 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-01 18:20:04,064 - pyslsqp_optimizer - INFO -     Current partition areas: [1.14121064 1.14136063]
+2025-08-01 18:20:09,335 - pyslsqp_optimizer - INFO -   Iteration 300:
+2025-08-01 18:20:09,335 - pyslsqp_optimizer - INFO -     Energy: 5.095707e+00
+2025-08-01 18:20:09,335 - pyslsqp_optimizer - INFO -     Energy change: 4.667140e-05
+2025-08-01 18:20:09,335 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-01 18:20:09,335 - pyslsqp_optimizer - INFO -     Current partition areas: [1.14120459 1.14135059]
+2025-08-01 18:20:14,198 - pyslsqp_optimizer - INFO -   Iteration 350:
+2025-08-01 18:20:14,198 - pyslsqp_optimizer - INFO -     Energy: 5.098022e+00
+2025-08-01 18:20:14,198 - pyslsqp_optimizer - INFO -     Energy change: -1.086215e-04
+2025-08-01 18:20:14,198 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-01 18:20:14,198 - pyslsqp_optimizer - INFO -     Current partition areas: [1.14117484 1.14133792]
+2025-08-01 18:20:19,402 - pyslsqp_optimizer - INFO -   Iteration 400:
+2025-08-01 18:20:19,402 - pyslsqp_optimizer - INFO -     Energy: 5.100694e+00
+2025-08-01 18:20:19,402 - pyslsqp_optimizer - INFO -     Energy change: -3.170988e-04
+2025-08-01 18:20:19,402 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-01 18:20:19,402 - pyslsqp_optimizer - INFO -     Current partition areas: [1.14115566 1.14136393]
+2025-08-01 18:20:24,614 - pyslsqp_optimizer - INFO -   Iteration 450:
+2025-08-01 18:20:24,614 - pyslsqp_optimizer - INFO -     Energy: 5.101570e+00
+2025-08-01 18:20:24,614 - pyslsqp_optimizer - INFO -     Energy change: 7.210792e-05
+2025-08-01 18:20:24,614 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-01 18:20:24,615 - pyslsqp_optimizer - INFO -     Current partition areas: [1.14114976 1.14133073]
+2025-08-01 18:20:29,237 - pyslsqp_optimizer - INFO -   Iteration 500:
+2025-08-01 18:20:29,238 - pyslsqp_optimizer - INFO -     Energy: 5.104087e+00
+2025-08-01 18:20:29,238 - pyslsqp_optimizer - INFO -     Energy change: -9.872908e-05
+2025-08-01 18:20:29,238 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-01 18:20:29,238 - pyslsqp_optimizer - INFO -     Current partition areas: [1.14113456 1.14134079]
+2025-08-01 18:20:33,851 - pyslsqp_optimizer - INFO -   Iteration 550:
+2025-08-01 18:20:33,851 - pyslsqp_optimizer - INFO -     Energy: 5.104928e+00
+2025-08-01 18:20:33,851 - pyslsqp_optimizer - INFO -     Energy change: 3.817380e-05
+2025-08-01 18:20:33,852 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-01 18:20:33,852 - pyslsqp_optimizer - INFO -     Current partition areas: [1.1411144 1.1413341]
+2025-08-01 18:20:38,641 - pyslsqp_optimizer - INFO -   Iteration 600:
+2025-08-01 18:20:38,642 - pyslsqp_optimizer - INFO -     Energy: 5.106585e+00
+2025-08-01 18:20:38,642 - pyslsqp_optimizer - INFO -     Energy change: 2.843222e-05
+2025-08-01 18:20:38,642 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-01 18:20:38,643 - pyslsqp_optimizer - INFO -     Current partition areas: [1.14109995 1.1413321 ]
+2025-08-01 18:20:43,367 - pyslsqp_optimizer - INFO -   Iteration 650:
+2025-08-01 18:20:43,367 - pyslsqp_optimizer - INFO -     Energy: 5.108201e+00
+2025-08-01 18:20:43,367 - pyslsqp_optimizer - INFO -     Energy change: 3.164979e-05
+2025-08-01 18:20:43,368 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-01 18:20:43,368 - pyslsqp_optimizer - INFO -     Current partition areas: [1.14108718 1.14133244]
+2025-08-01 18:20:47,964 - pyslsqp_optimizer - INFO -   Iteration 700:
+2025-08-01 18:20:47,965 - pyslsqp_optimizer - INFO -     Energy: 5.109748e+00
+2025-08-01 18:20:47,965 - pyslsqp_optimizer - INFO -     Energy change: 3.028464e-05
+2025-08-01 18:20:47,965 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-01 18:20:47,965 - pyslsqp_optimizer - INFO -     Current partition areas: [1.14107382 1.14133249]
+2025-08-01 18:20:52,935 - pyslsqp_optimizer - INFO -   Iteration 750:
+2025-08-01 18:20:52,935 - pyslsqp_optimizer - INFO -     Energy: 5.111230e+00
+2025-08-01 18:20:52,935 - pyslsqp_optimizer - INFO -     Energy change: 2.902780e-05
+2025-08-01 18:20:52,935 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-01 18:20:52,936 - pyslsqp_optimizer - INFO -     Current partition areas: [1.14106115 1.14133244]
+2025-08-01 18:20:58,426 - pyslsqp_optimizer - INFO -   Iteration 800:
+2025-08-01 18:20:58,427 - pyslsqp_optimizer - INFO -     Energy: 5.112651e+00
+2025-08-01 18:20:58,427 - pyslsqp_optimizer - INFO -     Energy change: 2.787429e-05
+2025-08-01 18:20:58,427 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-01 18:20:58,428 - pyslsqp_optimizer - INFO -     Current partition areas: [1.14104911 1.1413323 ]
+2025-08-01 18:21:03,686 - pyslsqp_optimizer - INFO -   Iteration 850:
+2025-08-01 18:21:03,687 - pyslsqp_optimizer - INFO -     Energy: 5.114018e+00
+2025-08-01 18:21:03,687 - pyslsqp_optimizer - INFO -     Energy change: 2.685821e-05
+2025-08-01 18:21:03,687 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-01 18:21:03,687 - pyslsqp_optimizer - INFO -     Current partition areas: [1.14103764 1.14133209]
+2025-08-01 18:21:08,871 - pyslsqp_optimizer - INFO -   Iteration 900:
+2025-08-01 18:21:08,872 - pyslsqp_optimizer - INFO -     Energy: 5.115337e+00
+2025-08-01 18:21:08,872 - pyslsqp_optimizer - INFO -     Energy change: 2.592648e-05
+2025-08-01 18:21:08,873 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-01 18:21:08,873 - pyslsqp_optimizer - INFO -     Current partition areas: [1.14102666 1.14133182]
+2025-08-01 18:21:13,633 - pyslsqp_optimizer - INFO -   Iteration 950:
+2025-08-01 18:21:13,633 - pyslsqp_optimizer - INFO -     Energy: 5.116611e+00
+2025-08-01 18:21:13,633 - pyslsqp_optimizer - INFO -     Energy change: 2.506802e-05
+2025-08-01 18:21:13,633 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-01 18:21:13,634 - pyslsqp_optimizer - INFO -     Current partition areas: [1.14101614 1.14133149]
+2025-08-01 18:21:18,261 - pyslsqp_optimizer - INFO -   Iteration 1000:
+2025-08-01 18:21:18,261 - pyslsqp_optimizer - INFO -     Energy: 5.277077e+00
+2025-08-01 18:21:18,262 - pyslsqp_optimizer - INFO -     Energy change: 1.592568e-01
+2025-08-01 18:21:18,262 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-01 18:21:18,262 - pyslsqp_optimizer - INFO -     Current partition areas: [1.14290529 1.14681303]
+2025-08-01 18:21:18,447 - pyslsqp_optimizer - INFO - PySLSQP optimization completed:
+2025-08-01 18:21:18,447 - pyslsqp_optimizer - INFO -   Success: False
+2025-08-01 18:21:18,447 - pyslsqp_optimizer - INFO -   Summary saved to: results/run_20250801_181937_npart2_nr8_na16_lam0.0_seed42/pyslsqp_part2_nt8_np16_lam0.0_seed42_level0_summary.out
+2025-08-01 18:21:18,447 - pyslsqp_optimizer - INFO -   Internal data saved to: results/run_20250801_181937_npart2_nr8_na16_lam0.0_seed42/pyslsqp_part2_nt8_np16_lam0.0_seed42_level0_internal_data.hdf5
+2025-08-01 18:21:18,447 - pyslsqp_optimizer - WARNING - Returning last valid iterate before unsuccessful termination.
+2025-08-01 18:21:18,447 - pyslsqp_optimizer - INFO - optimization completed: 100.321s, memory: 33.77MB
+2025-08-01 18:21:18,448 - __main__ - INFO - Results for level 1:
+2025-08-01 18:21:18,449 - __main__ - INFO -   Energy: 5.117820e+00
+2025-08-01 18:21:18,449 - __main__ - INFO -   Iterations: 1000
+2025-08-01 18:21:18,449 - __main__ - INFO -   Time: 100.32s
+2025-08-01 18:21:18,449 - __main__ - INFO -   Success: False
+2025-08-01 18:21:18,449 - __main__ - INFO - Refinement Summary:
+2025-08-01 18:21:18,449 - __main__ - INFO - ================================================================================
+2025-08-01 18:21:18,449 - __main__ - INFO -  Level    Mesh Size       Energy Iterations   Time (s)
+2025-08-01 18:21:18,449 - __main__ - INFO - --------------------------------------------------------------------------------
+2025-08-01 18:21:18,449 - __main__ - INFO -      1         8x16 5.117820e+00       1000     100.32
+2025-08-01 18:21:18,451 - __main__ - INFO - ✅ Solution file saved: results/run_20250801_181937_npart2_nr8_na16_lam0.0_seed42/ring_part2_nr8_na16_lam0.0_seed42_20250801_181937.h5

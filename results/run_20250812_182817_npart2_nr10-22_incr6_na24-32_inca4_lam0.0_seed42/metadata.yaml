@@ -1,0 +1,38 @@
+datetime: '20250812_182817'
+final_energy: 6.964621511863614
+final_epsilon: 0.04173581046468371
+final_iterations: 29
+final_mesh_stats:
+  max_triangle_area: 0.0023225038335253456
+  mean_triangle_area: 0.0017418778751440024
+  min_triangle_area: 0.0011612519167626652
+  n_angular: 32
+  n_radial: 22
+  n_triangles: 1344
+  n_vertices: 704
+  r_inner: 0.5
+  r_outer: 1.0
+  theoretical_area: 2.356194490192345
+  total_area: 2.341083864193539
+hostname: MacBookPro.lan
+input_parameters:
+  RING_PARAMS:
+    n_angular: 32
+    n_radial: 22
+    r_inner: 0.5
+    r_outer: 1.0
+  initial_condition_path: null
+  lambda_penalty: 0.0
+  n_angular_increment: 4
+  n_radial_increment: 6
+  refinement_levels: 3
+  seed: 42
+  use_analytic: 1
+  use_custom_initial_condition: 0
+optimizer: PySLSQP
+platform: macOS-15.4-x86_64-i386-64bit
+python_version: 3.9.7
+run_time_seconds: 1990.1211111545563
+solution_path: results/run_20250812_182817_npart2_nr10-22_incr6_na24-32_inca4_lam0.0_seed42/ring_part2_nr10-22_incr6_na24-32_inca4_lam0.0_seed42_20250812_182817.h5
+success: false
+user: estebanvelez

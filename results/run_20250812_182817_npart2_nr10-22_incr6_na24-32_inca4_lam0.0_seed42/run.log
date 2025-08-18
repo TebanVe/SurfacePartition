@@ -1,0 +1,200 @@
+2025-08-12 18:28:17,615 - __main__ - INFO - Starting ring partition optimization with 3 refinement levels
+2025-08-12 18:28:17,615 - __main__ - INFO - Results will be saved in: results/run_20250812_182817_npart2_nr10-22_incr6_na24-32_inca4_lam0.0_seed42
+2025-08-12 18:28:17,616 - __main__ - INFO - ================================================================================
+2025-08-12 18:28:17,616 - __main__ - INFO - Refinement Level 1/3
+2025-08-12 18:28:17,616 - __main__ - INFO - ================================================================================
+2025-08-12 18:28:17,616 - __main__ - INFO - Creating mesh with parameters: {'n_radial': 10, 'n_angular': 24, 'r_inner': 0.5, 'r_outer': 1.0}
+2025-08-12 18:28:17,616 - ring_mesh - INFO - Creating ring mesh: n_radial=10, n_angular=24, r_inner=0.5, r_outer=1.0
+2025-08-12 18:28:17,629 - ring_mesh - INFO - Mesh created: 240 vertices, 432 triangles
+2025-08-12 18:28:17,629 - ring_mesh - INFO - Theoretical area: 2.356194
+2025-08-12 18:28:17,629 - __main__ - INFO - Mesh created: 240 vertices, 432 triangles
+2025-08-12 18:28:17,629 - __main__ - INFO - Computing FEM matrices...
+2025-08-12 18:28:17,645 - ring_mesh - INFO - Starting matrix computation
+2025-08-12 18:28:17,645 - ring_mesh - INFO - Starting matrix computation...
+2025-08-12 18:28:17,715 - ring_mesh - INFO - Matrix computation completed: Mass matrix (240, 240), Stiffness matrix (240, 240)
+2025-08-12 18:28:17,716 - ring_mesh - INFO - matrix computation completed: 0.071s, memory: 0.41MB
+2025-08-12 18:28:17,716 - __main__ - INFO - Matrices computed successfully
+2025-08-12 18:28:17,716 - ring_mesh - INFO - Mesh statistics: 240 vertices, 432 triangles, area=2.329371
+2025-08-12 18:28:17,716 - __main__ - INFO - Setting epsilon to sqrt(mean_triangle_area): 7.343067e-02
+2025-08-12 18:28:17,716 - pyslsqp_optimizer - INFO - PySLSQPOptimizer initialized:
+2025-08-12 18:28:17,717 - pyslsqp_optimizer - INFO -   Ring: r_inner=0.500, r_outer=1.000
+2025-08-12 18:28:17,717 - pyslsqp_optimizer - INFO -   Partitions: 2
+2025-08-12 18:28:17,717 - pyslsqp_optimizer - INFO -   Epsilon: 7.34e-02
+2025-08-12 18:28:17,717 - pyslsqp_optimizer - INFO -   Theoretical area: 2.356194
+2025-08-12 18:28:17,717 - pyslsqp_optimizer - INFO -   Discretized area: 2.329371
+2025-08-12 18:28:17,717 - __main__ - INFO - PySLSQP optimizer created
+2025-08-12 18:28:17,717 - __main__ - INFO - Creating random initial condition using orthogonal projection
+2025-08-12 18:28:17,717 - projection_iterative - INFO - Creating initial condition: 240x2, method=iterative
+2025-08-12 18:28:17,718 - projection_iterative - INFO - Projection converged after 1 iterations
+2025-08-12 18:28:17,718 - projection_iterative - INFO - Final errors: row=1.67e-10, area=1.00e-10
+2025-08-12 18:28:17,718 - __main__ - INFO - Initial condition validation passed
+2025-08-12 18:28:17,718 - __main__ - INFO - Checking analytic vs finite-difference gradients...
+2025-08-12 18:28:17,718 - __main__ - INFO - Checking analytic vs finite-difference gradients...
+2025-08-12 18:28:17,849 - __main__ - WARNING - Large gradient error at point 0: 9.13e-03
+2025-08-12 18:28:17,981 - __main__ - WARNING - Large gradient error at point 1: 9.13e-03
+2025-08-12 18:28:18,110 - __main__ - WARNING - Large gradient error at point 2: 9.13e-03
+2025-08-12 18:28:18,239 - __main__ - WARNING - Large gradient error at point 3: 9.13e-03
+2025-08-12 18:28:18,371 - __main__ - WARNING - Large gradient error at point 4: 9.11e-03
+2025-08-12 18:28:18,501 - __main__ - WARNING - Large gradient error at point 5: 9.12e-03
+2025-08-12 18:28:18,631 - __main__ - WARNING - Large gradient error at point 6: 9.14e-03
+2025-08-12 18:28:18,759 - __main__ - WARNING - Large gradient error at point 7: 9.12e-03
+2025-08-12 18:28:18,887 - __main__ - WARNING - Large gradient error at point 8: 9.13e-03
+2025-08-12 18:28:19,016 - __main__ - WARNING - Large gradient error at point 9: 9.13e-03
+2025-08-12 18:28:19,016 - __main__ - INFO - Gradient check completed: avg_error=9.13e-03, max_error=9.14e-03
+2025-08-12 18:28:19,016 - __main__ - WARNING - Gradient errors are larger than expected
+2025-08-12 18:28:19,016 - pyslsqp_optimizer - INFO - Starting optimization
+2025-08-12 18:28:19,016 - pyslsqp_optimizer - INFO - Processing initial condition...
+2025-08-12 18:28:19,018 - pyslsqp_optimizer - INFO - ✓ Initial condition processed
+2025-08-12 18:28:19,018 - pyslsqp_optimizer - INFO - ✓ Initial condition validation passed
+2025-08-12 18:28:19,018 - pyslsqp_optimizer - INFO - Initial state before optimization:
+2025-08-12 18:28:19,018 - pyslsqp_optimizer - INFO -   Energy: 1.706245e+01
+2025-08-12 18:28:19,018 - pyslsqp_optimizer - INFO -   Initial condition shape: (480,)
+2025-08-12 18:28:19,018 - pyslsqp_optimizer - INFO -   Detailed optimization data will be saved to:
+2025-08-12 18:28:19,018 - pyslsqp_optimizer - INFO -     Summary: results/run_20250812_182817_npart2_nr10-22_incr6_na24-32_inca4_lam0.0_seed42/pyslsqp_part2_nt10_np24_lam0.0_seed42_level0_summary.out
+2025-08-12 18:28:19,018 - pyslsqp_optimizer - INFO -     Internal data: results/run_20250812_182817_npart2_nr10-22_incr6_na24-32_inca4_lam0.0_seed42/pyslsqp_part2_nt10_np24_lam0.0_seed42_level0_internal_data.hdf5
+2025-08-12 18:28:19,018 - pyslsqp_optimizer - INFO - Starting PySLSQP optimization with analytic gradients...
+2025-08-12 18:28:37,961 - pyslsqp_optimizer - INFO - PySLSQP optimization completed:
+2025-08-12 18:28:37,961 - pyslsqp_optimizer - INFO -   Success: False
+2025-08-12 18:28:37,961 - pyslsqp_optimizer - INFO -   Summary saved to: results/run_20250812_182817_npart2_nr10-22_incr6_na24-32_inca4_lam0.0_seed42/pyslsqp_part2_nt10_np24_lam0.0_seed42_level0_summary.out
+2025-08-12 18:28:37,961 - pyslsqp_optimizer - INFO -   Internal data saved to: results/run_20250812_182817_npart2_nr10-22_incr6_na24-32_inca4_lam0.0_seed42/pyslsqp_part2_nt10_np24_lam0.0_seed42_level0_internal_data.hdf5
+2025-08-12 18:28:37,961 - pyslsqp_optimizer - WARNING - Returning last valid iterate before unsuccessful termination.
+2025-08-12 18:28:37,962 - pyslsqp_optimizer - INFO - optimization completed: 18.946s, memory: 20.44MB
+2025-08-12 18:28:37,963 - __main__ - INFO - Results for level 1:
+2025-08-12 18:28:37,963 - __main__ - INFO -   Energy: 7.577683e+00
+2025-08-12 18:28:37,963 - __main__ - INFO -   Iterations: 30
+2025-08-12 18:28:37,963 - __main__ - INFO -   Time: 18.95s
+2025-08-12 18:28:37,963 - __main__ - INFO -   Success: False
+2025-08-12 18:28:37,963 - __main__ - INFO - ================================================================================
+2025-08-12 18:28:37,963 - __main__ - INFO - Refinement Level 2/3
+2025-08-12 18:28:37,963 - __main__ - INFO - ================================================================================
+2025-08-12 18:28:37,963 - __main__ - INFO - Creating mesh with parameters: {'n_radial': 16, 'n_angular': 28, 'r_inner': 0.5, 'r_outer': 1.0}
+2025-08-12 18:28:37,963 - ring_mesh - INFO - Creating ring mesh: n_radial=16, n_angular=28, r_inner=0.5, r_outer=1.0
+2025-08-12 18:28:37,988 - ring_mesh - INFO - Mesh created: 448 vertices, 840 triangles
+2025-08-12 18:28:37,988 - ring_mesh - INFO - Theoretical area: 2.356194
+2025-08-12 18:28:37,988 - __main__ - INFO - Mesh created: 448 vertices, 840 triangles
+2025-08-12 18:28:37,989 - __main__ - INFO - Computing FEM matrices...
+2025-08-12 18:28:37,989 - ring_mesh - INFO - Starting matrix computation
+2025-08-12 18:28:37,989 - ring_mesh - INFO - Starting matrix computation...
+2025-08-12 18:28:38,112 - ring_mesh - INFO - Matrix computation completed: Mass matrix (448, 448), Stiffness matrix (448, 448)
+2025-08-12 18:28:38,112 - ring_mesh - INFO - matrix computation completed: 0.124s, memory: 0.36MB
+2025-08-12 18:28:38,112 - __main__ - INFO - Matrices computed successfully
+2025-08-12 18:28:38,113 - ring_mesh - INFO - Mesh statistics: 448 vertices, 840 triangles, area=2.336470
+2025-08-12 18:28:38,113 - __main__ - INFO - Setting epsilon to sqrt(mean_triangle_area): 5.274004e-02
+2025-08-12 18:28:38,114 - pyslsqp_optimizer - INFO - PySLSQPOptimizer initialized:
+2025-08-12 18:28:38,114 - pyslsqp_optimizer - INFO -   Ring: r_inner=0.500, r_outer=1.000
+2025-08-12 18:28:38,114 - pyslsqp_optimizer - INFO -   Partitions: 2
+2025-08-12 18:28:38,114 - pyslsqp_optimizer - INFO -   Epsilon: 5.27e-02
+2025-08-12 18:28:38,114 - pyslsqp_optimizer - INFO -   Theoretical area: 2.356194
+2025-08-12 18:28:38,114 - pyslsqp_optimizer - INFO -   Discretized area: 2.336470
+2025-08-12 18:28:38,114 - __main__ - INFO - PySLSQP optimizer created
+2025-08-12 18:28:38,114 - __main__ - INFO - Mesh resolution changed. Interpolating solution from previous mesh to current mesh...
+2025-08-12 18:28:38,122 - __main__ - INFO - Projecting interpolated solution to feasible region (orthogonal projection)
+2025-08-12 18:28:38,124 - projection_iterative - INFO - Projection converged after 5 iterations
+2025-08-12 18:28:38,124 - projection_iterative - INFO - Final errors: row=5.73e-10, area=1.00e-10
+2025-08-12 18:28:38,124 - __main__ - INFO - Initial condition validation passed
+2025-08-12 18:28:38,124 - __main__ - INFO - Initial condition validation passed
+2025-08-12 18:28:38,124 - __main__ - INFO - Checking analytic vs finite-difference gradients...
+2025-08-12 18:28:38,125 - __main__ - INFO - Checking analytic vs finite-difference gradients...
+2025-08-12 18:28:38,379 - __main__ - WARNING - Large gradient error at point 0: 1.42e-02
+2025-08-12 18:28:38,633 - __main__ - WARNING - Large gradient error at point 1: 1.43e-02
+2025-08-12 18:28:38,882 - __main__ - WARNING - Large gradient error at point 2: 1.42e-02
+2025-08-12 18:28:39,136 - __main__ - WARNING - Large gradient error at point 3: 1.42e-02
+2025-08-12 18:28:39,391 - __main__ - WARNING - Large gradient error at point 4: 1.42e-02
+2025-08-12 18:28:39,647 - __main__ - WARNING - Large gradient error at point 5: 1.42e-02
+2025-08-12 18:28:39,898 - __main__ - WARNING - Large gradient error at point 6: 1.42e-02
+2025-08-12 18:28:40,154 - __main__ - WARNING - Large gradient error at point 7: 1.42e-02
+2025-08-12 18:28:40,406 - __main__ - WARNING - Large gradient error at point 8: 1.43e-02
+2025-08-12 18:28:40,657 - __main__ - WARNING - Large gradient error at point 9: 1.43e-02
+2025-08-12 18:28:40,658 - __main__ - INFO - Gradient check completed: avg_error=1.42e-02, max_error=1.43e-02
+2025-08-12 18:28:40,658 - __main__ - WARNING - Gradient errors are larger than expected
+2025-08-12 18:28:40,658 - pyslsqp_optimizer - INFO - Starting optimization
+2025-08-12 18:28:40,658 - pyslsqp_optimizer - INFO - Processing initial condition...
+2025-08-12 18:28:40,662 - pyslsqp_optimizer - INFO - ✓ Initial condition processed
+2025-08-12 18:28:40,663 - pyslsqp_optimizer - INFO - ✓ Initial condition validation passed
+2025-08-12 18:28:40,663 - pyslsqp_optimizer - INFO - Starting PySLSQP optimization with analytic gradients...
+2025-08-12 18:28:43,982 - pyslsqp_optimizer - INFO -   Iteration 0:
+2025-08-12 18:28:43,982 - pyslsqp_optimizer - INFO -     Energy: 7.598852e+00
+2025-08-12 18:28:43,982 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-12 18:28:43,982 - pyslsqp_optimizer - INFO -     Current partition areas: [1.16444558 1.16985051]
+2025-08-12 18:29:18,496 - pyslsqp_optimizer - INFO - PySLSQP optimization completed:
+2025-08-12 18:29:18,497 - pyslsqp_optimizer - INFO -   Success: False
+2025-08-12 18:29:18,497 - pyslsqp_optimizer - INFO -   Summary saved to: results/run_20250812_182817_npart2_nr10-22_incr6_na24-32_inca4_lam0.0_seed42/pyslsqp_part2_nt16_np28_lam0.0_seed42_level1_summary.out
+2025-08-12 18:29:18,497 - pyslsqp_optimizer - INFO -   Internal data saved to: results/run_20250812_182817_npart2_nr10-22_incr6_na24-32_inca4_lam0.0_seed42/pyslsqp_part2_nt16_np28_lam0.0_seed42_level1_internal_data.hdf5
+2025-08-12 18:29:18,497 - pyslsqp_optimizer - WARNING - Returning last valid iterate before unsuccessful termination.
+2025-08-12 18:29:18,501 - pyslsqp_optimizer - INFO - optimization completed: 37.843s, memory: 54.71MB
+2025-08-12 18:29:18,502 - __main__ - INFO - Results for level 2:
+2025-08-12 18:29:18,502 - __main__ - INFO -   Energy: 7.598852e+00
+2025-08-12 18:29:18,502 - __main__ - INFO -   Iterations: 1
+2025-08-12 18:29:18,502 - __main__ - INFO -   Time: 37.84s
+2025-08-12 18:29:18,502 - __main__ - INFO -   Success: False
+2025-08-12 18:29:18,502 - __main__ - INFO - ================================================================================
+2025-08-12 18:29:18,502 - __main__ - INFO - Refinement Level 3/3
+2025-08-12 18:29:18,502 - __main__ - INFO - ================================================================================
+2025-08-12 18:29:18,502 - __main__ - INFO - Creating mesh with parameters: {'n_radial': 22, 'n_angular': 32, 'r_inner': 0.5, 'r_outer': 1.0}
+2025-08-12 18:29:18,502 - ring_mesh - INFO - Creating ring mesh: n_radial=22, n_angular=32, r_inner=0.5, r_outer=1.0
+2025-08-12 18:29:18,544 - ring_mesh - INFO - Mesh created: 704 vertices, 1344 triangles
+2025-08-12 18:29:18,544 - ring_mesh - INFO - Theoretical area: 2.356194
+2025-08-12 18:29:18,545 - __main__ - INFO - Mesh created: 704 vertices, 1344 triangles
+2025-08-12 18:29:18,545 - __main__ - INFO - Computing FEM matrices...
+2025-08-12 18:29:18,545 - ring_mesh - INFO - Starting matrix computation
+2025-08-12 18:29:18,545 - ring_mesh - INFO - Starting matrix computation...
+2025-08-12 18:29:18,748 - ring_mesh - INFO - Matrix computation completed: Mass matrix (704, 704), Stiffness matrix (704, 704)
+2025-08-12 18:29:18,748 - ring_mesh - INFO - matrix computation completed: 0.203s, memory: 0.44MB
+2025-08-12 18:29:18,748 - __main__ - INFO - Matrices computed successfully
+2025-08-12 18:29:18,748 - ring_mesh - INFO - Mesh statistics: 704 vertices, 1344 triangles, area=2.341084
+2025-08-12 18:29:18,748 - __main__ - INFO - Setting epsilon to sqrt(mean_triangle_area): 4.173581e-02
+2025-08-12 18:29:18,751 - pyslsqp_optimizer - INFO - PySLSQPOptimizer initialized:
+2025-08-12 18:29:18,751 - pyslsqp_optimizer - INFO -   Ring: r_inner=0.500, r_outer=1.000
+2025-08-12 18:29:18,751 - pyslsqp_optimizer - INFO -   Partitions: 2
+2025-08-12 18:29:18,751 - pyslsqp_optimizer - INFO -   Epsilon: 4.17e-02
+2025-08-12 18:29:18,751 - pyslsqp_optimizer - INFO -   Theoretical area: 2.356194
+2025-08-12 18:29:18,751 - pyslsqp_optimizer - INFO -   Discretized area: 2.341084
+2025-08-12 18:29:18,751 - __main__ - INFO - PySLSQP optimizer created
+2025-08-12 18:29:18,751 - __main__ - INFO - Mesh resolution changed. Interpolating solution from previous mesh to current mesh...
+2025-08-12 18:29:18,769 - __main__ - INFO - Projecting interpolated solution to feasible region (orthogonal projection)
+2025-08-12 18:29:18,772 - projection_iterative - INFO - Projection converged after 3 iterations
+2025-08-12 18:29:18,772 - projection_iterative - INFO - Final errors: row=3.88e-09, area=1.00e-10
+2025-08-12 18:29:18,773 - __main__ - INFO - Initial condition validation passed
+2025-08-12 18:29:18,773 - __main__ - INFO - Initial condition validation passed
+2025-08-12 18:29:18,773 - __main__ - INFO - Checking analytic vs finite-difference gradients...
+2025-08-12 18:29:18,773 - __main__ - INFO - Checking analytic vs finite-difference gradients...
+2025-08-12 18:29:19,238 - __main__ - WARNING - Large gradient error at point 0: 1.38e-02
+2025-08-12 18:29:19,705 - __main__ - WARNING - Large gradient error at point 1: 1.39e-02
+2025-08-12 18:29:20,165 - __main__ - WARNING - Large gradient error at point 2: 1.38e-02
+2025-08-12 18:29:20,621 - __main__ - WARNING - Large gradient error at point 3: 1.39e-02
+2025-08-12 18:29:21,071 - __main__ - WARNING - Large gradient error at point 4: 1.39e-02
+2025-08-12 18:29:21,513 - __main__ - WARNING - Large gradient error at point 5: 1.38e-02
+2025-08-12 18:29:21,956 - __main__ - WARNING - Large gradient error at point 6: 1.38e-02
+2025-08-12 18:29:22,402 - __main__ - WARNING - Large gradient error at point 7: 1.39e-02
+2025-08-12 18:29:22,842 - __main__ - WARNING - Large gradient error at point 8: 1.39e-02
+2025-08-12 18:29:23,285 - __main__ - WARNING - Large gradient error at point 9: 1.38e-02
+2025-08-12 18:29:23,285 - __main__ - INFO - Gradient check completed: avg_error=1.39e-02, max_error=1.39e-02
+2025-08-12 18:29:23,285 - __main__ - WARNING - Gradient errors are larger than expected
+2025-08-12 18:29:23,285 - pyslsqp_optimizer - INFO - Starting optimization
+2025-08-12 18:29:23,285 - pyslsqp_optimizer - INFO - Processing initial condition...
+2025-08-12 18:29:23,289 - pyslsqp_optimizer - INFO - ✓ Initial condition processed
+2025-08-12 18:29:23,290 - pyslsqp_optimizer - INFO - ✓ Initial condition validation passed
+2025-08-12 18:29:23,290 - pyslsqp_optimizer - INFO - Starting PySLSQP optimization with analytic gradients...
+2025-08-12 18:29:52,421 - pyslsqp_optimizer - INFO -   Iteration 0:
+2025-08-12 18:29:52,421 - pyslsqp_optimizer - INFO -     Energy: 7.414602e+00
+2025-08-12 18:29:52,421 - pyslsqp_optimizer - INFO -     Theoretical target area per partition: 1.178097e+00
+2025-08-12 18:29:52,421 - pyslsqp_optimizer - INFO -     Current partition areas: [1.1705549  1.16854668]
+2025-08-12 19:02:33,393 - pyslsqp_optimizer - INFO - PySLSQP optimization completed:
+2025-08-12 19:02:33,394 - pyslsqp_optimizer - INFO -   Success: False
+2025-08-12 19:02:33,394 - pyslsqp_optimizer - INFO -   Summary saved to: results/run_20250812_182817_npart2_nr10-22_incr6_na24-32_inca4_lam0.0_seed42/pyslsqp_part2_nt22_np32_lam0.0_seed42_level2_summary.out
+2025-08-12 19:02:33,394 - pyslsqp_optimizer - INFO -   Internal data saved to: results/run_20250812_182817_npart2_nr10-22_incr6_na24-32_inca4_lam0.0_seed42/pyslsqp_part2_nt22_np32_lam0.0_seed42_level2_internal_data.hdf5
+2025-08-12 19:02:33,394 - pyslsqp_optimizer - WARNING - Returning last valid iterate before unsuccessful termination.
+2025-08-12 19:02:33,406 - pyslsqp_optimizer - INFO - optimization completed: 1990.120s, memory: 23.07MB
+2025-08-12 19:02:33,409 - __main__ - INFO - Results for level 3:
+2025-08-12 19:02:33,409 - __main__ - INFO -   Energy: 6.964622e+00
+2025-08-12 19:02:33,409 - __main__ - INFO -   Iterations: 29
+2025-08-12 19:02:33,409 - __main__ - INFO -   Time: 1990.12s
+2025-08-12 19:02:33,410 - __main__ - INFO -   Success: False
+2025-08-12 19:02:33,410 - __main__ - INFO - Refinement Summary:
+2025-08-12 19:02:33,410 - __main__ - INFO - ================================================================================
+2025-08-12 19:02:33,410 - __main__ - INFO -  Level    Mesh Size       Energy Iterations   Time (s)
+2025-08-12 19:02:33,410 - __main__ - INFO - --------------------------------------------------------------------------------
+2025-08-12 19:02:33,410 - __main__ - INFO -      1        10x24 7.577683e+00         30      18.95
+2025-08-12 19:02:33,410 - __main__ - INFO -      2        16x28 7.598852e+00          1      37.84
+2025-08-12 19:02:33,410 - __main__ - INFO -      3        22x32 6.964622e+00         29    1990.12
+2025-08-12 19:02:33,413 - __main__ - INFO - ✅ Solution file saved: results/run_20250812_182817_npart2_nr10-22_incr6_na24-32_inca4_lam0.0_seed42/ring_part2_nr10-22_incr6_na24-32_inca4_lam0.0_seed42_20250812_182817.h5

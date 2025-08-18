@@ -17,6 +17,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from logging_config import setup_logging, get_logger
 from core.pyslsqp_optimizer import PySLSQPOptimizer, RefinementTriggered
+from core.pgd_optimizer import ProjectedGradientOptimizer
 from projection_iterative import (
 	orthogonal_projection_iterative,
 	create_initial_condition_with_projection,
@@ -71,7 +72,9 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 		total_area = getattr(provider, 'theoretical_total_area', None)
 		total_area = provider.theoretical_total_area() if callable(total_area) else float(np.sum(mesh.v))
 
-		optimizer = PySLSQPOptimizer(K=mesh.K, M=mesh.M, v=mesh.v, n_partitions=config.n_partitions,
+		optimizer_name = 'PySLSQP' if getattr(config, 'optimizer_type', 'pyslsqp') == 'pyslsqp' else 'PGD'
+		if optimizer_name == 'PySLSQP':
+			optimizer = PySLSQPOptimizer(K=mesh.K, M=mesh.M, v=mesh.v, n_partitions=config.n_partitions,
 									epsilon=epsilon, total_area=total_area,
 									lambda_penalty=getattr(config, 'lambda_penalty', 0.0),
 									refine_patience=int(getattr(config, 'refine_patience', 30)),
@@ -79,6 +82,15 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 									refine_grad_tol=float(getattr(config, 'refine_grad_tol', 1e-2)),
 									refine_constraint_tol=float(getattr(config, 'refine_constraint_tol', 1e-2)),
 									logger=logger)
+		else:
+			optimizer = ProjectedGradientOptimizer(K=mesh.K, M=mesh.M, v=mesh.v, n_partitions=config.n_partitions,
+										epsilon=epsilon, total_area=total_area,
+										lambda_penalty=getattr(config, 'lambda_penalty', 0.0),
+										refine_patience=int(getattr(config, 'refine_patience', 30)),
+										refine_delta_energy=float(getattr(config, 'refine_delta_energy', 1e-4)),
+										refine_grad_tol=float(getattr(config, 'refine_grad_tol', 1e-2)),
+										refine_constraint_tol=float(getattr(config, 'refine_constraint_tol', 1e-2)),
+										logger=logger)
 
 		N = len(mesh.v)
 		if level == 0:
@@ -92,28 +104,43 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 
 		start = time.time()
 		try:
-			x_opt, success = optimizer.optimize(
-				x0=x0,
-				maxiter=getattr(config, 'max_iter', 1000),
-				ftol=float(getattr(config, 'tol', 1e-6)),
-				use_analytic=getattr(config, 'use_analytic', True),
-				results_dir=outdir,
-				run_name=f"pyslsqp_part{config.n_partitions}_v1{label1}{provider.get_resolution()[0]}_v2{label2}{provider.get_resolution()[1]}_level{level}",
-				is_mesh_refinement=(level > 0),
-				save_itr=getattr(config, 'pyslsqp_save_itr', 'major')
-			)
+			if optimizer_name == 'PySLSQP':
+				x_opt, success = optimizer.optimize(
+					x0=x0,
+					maxiter=getattr(config, 'max_iter', 1000),
+					ftol=float(getattr(config, 'tol', 1e-6)),
+					use_analytic=getattr(config, 'use_analytic', True),
+					results_dir=outdir,
+					run_name=f"pyslsqp_part{config.n_partitions}_v1{label1}{provider.get_resolution()[0]}_v2{label2}{provider.get_resolution()[1]}_level{level}",
+					is_mesh_refinement=(level > 0),
+					save_itr=getattr(config, 'pyslsqp_save_itr', 'major')
+				)
+			else:
+				x_opt, success = optimizer.optimize(
+					x0=x0,
+					maxiter=getattr(config, 'max_iter', 1000),
+					step0=float(getattr(config, 'pgd_step0', 1.0)),
+					armijo_c=float(getattr(config, 'pgd_armijo_c', 1e-4)),
+					backtrack_rho=float(getattr(config, 'pgd_backtrack_rho', 0.5)),
+					projection_max_iter=int(getattr(config, 'pgd_projection_max_iter', 100)),
+					projection_tol=float(getattr(config, 'pgd_projection_tol', 1e-8)),
+					results_dir=outdir,
+					run_name=f"pgd_part{config.n_partitions}_v1{label1}{provider.get_resolution()[0]}_v2{label2}{provider.get_resolution()[1]}_level{level}",
+					is_mesh_refinement=(level > 0),
+				)
 		except RefinementTriggered:
 			logger.info(f"Refinement triggered early at level {level+1}")
 			x_opt = getattr(optimizer, 'prev_x', x0)
 			success = False
 		elapsed = time.time() - start
 
+		energy_val = optimizer.compute_energy(x_opt)
 		results.append({
 			'level': level,
 			'mesh': mesh,
 			'epsilon': epsilon,
 			'x_opt': x_opt,
-			'energy': optimizer.compute_energy(x_opt),
+			'energy': energy_val,
 			'iterations': len(optimizer.log.get('iterations', [])),
 			'time': elapsed,
 			'success': success,
@@ -126,6 +153,13 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 			'v_sum': float(np.sum(mesh.v)),
 			'epsilon': float(epsilon),
 		})
+
+		# Per-level result summary
+		logger.info(f"Results for level {level+1}:")
+		logger.info(f"  Energy: {energy_val:.6e}")
+		logger.info(f"  Iterations: {results[-1]['iterations']}")
+		logger.info(f"  Time: {elapsed:.2f}s")
+		logger.info(f"  Success: {success}")
 
 	# Save final solution
 	final = results[-1]
@@ -151,7 +185,7 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 			f.attrs['var2'] = int(provider.get_resolution()[1])
 		f.attrs['lambda_penalty'] = float(getattr(config, 'lambda_penalty', 0.0))
 		f.attrs['seed'] = int(config.seed)
-		f.attrs['optimizer'] = 'PySLSQP'
+		f.attrs['optimizer'] = 'PySLSQP' if optimizer_name == 'PySLSQP' else 'PGD'
 		f.attrs['use_analytic'] = bool(getattr(config, 'use_analytic', True))
 
 	# Save metadata
@@ -178,10 +212,21 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 		'platform': platform.platform(),
 		'python_version': platform.python_version(),
 		'solution_path': solution_path,
-		'optimizer': 'PySLSQP'
+		'optimizer': 'PySLSQP' if optimizer_name == 'PySLSQP' else 'PGD'
 	}
 	with open(os.path.join(outdir, 'metadata.yaml'), 'w') as f:
 		yaml.dump(meta, f)
+
+	# Refinement summary table (independent of optimizer)
+	logger.info("Refinement Summary:")
+	logger.info("=" * 80)
+	logger.info(" Level    Mesh Size       Energy Iterations   Time (s)")
+	logger.info("-" * 80)
+	for i, res in enumerate(results, start=1):
+		lv = levels_meta[i-1]
+		mesh_size = f"{int(lv.get(label1, 0))}x{int(lv.get(label2, 0))}"
+		logger.info(f"{i:6d} {mesh_size:>11s} {res['energy']:12.6e} {res['iterations']:10d} {res['time']:10.2f}")
+	logger.info(f"✅ Solution file saved: {solution_path}")
 	print(f"Surface partition optimization complete. See {logfile_path} for details.\n")
 	print(f"Results saved in: {outdir}")
 	return results
