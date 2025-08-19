@@ -144,11 +144,11 @@ def orthogonal_projection_iterative(A: np.ndarray, c: np.ndarray, d: np.ndarray,
             
         # Check if we're making progress
         if iter > 0 and np.allclose(A, A_prev, rtol=tol, atol=tol):
-            # Downgrade to DEBUG if we're already within tolerance; warn otherwise
-            if row_sum_error < tol and area_error < tol:
-                logger.debug(f"Projection stagnated after {iter+1} iterations (within tol): row={row_sum_error:.2e}, area={area_error:.2e}")
+            # Warn only if clearly above tolerance; otherwise treat as benign stagnation
+            if max_error > 10 * tol:
+                logger.warning(f"Projection stagnated after {iter+1} iterations (max_error={max_error:.2e} > {10*tol:.1e})")
             else:
-                logger.warning(f"Projection stagnated after {iter+1} iterations")
+                logger.debug(f"Projection stagnated after {iter+1} iterations (near tol): row={row_sum_error:.2e}, area={area_error:.2e}")
             break
     else:
         # Loop completed without convergence
