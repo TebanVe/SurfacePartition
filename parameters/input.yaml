@@ -35,9 +35,9 @@ pgd_projection_max_iter: 200
 pgd_projection_tol: 1.0e-10
 
 # Refinement parameters
-refinement_levels: 1
-n_radial_increment: 5
-n_angular_increment: 5
+refinement_levels: 2
+n_radial_increment: 20
+n_angular_increment: 20
 use_analytic: true
 
 # Mesh refinement convergence criteria
