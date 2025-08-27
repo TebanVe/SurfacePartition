@@ -141,14 +141,15 @@ class TriMesh:
 
 	@property
 	def v(self) -> np.ndarray:
-		return np.sum(self.M.toarray(), axis=0)
+		# Column sum of M without densifying: returns shape (N,)
+		return np.asarray(self.M.sum(axis=0)).ravel()
 
 	def get_mesh_statistics(self) -> Dict[str, float]:
 		areas = self.triangle_areas
 		return {
 			'n_vertices': int(self.vertices.shape[0]),
 			'n_triangles': int(self.faces.shape[0]),
-			'total_area': float(np.sum(self.M.toarray())),
+			'total_area': float(self.M.sum()),
 			'mean_triangle_area': float(np.mean(areas)) if areas.size else 0.0,
 			'min_triangle_area': float(np.min(areas)) if areas.size else 0.0,
 			'max_triangle_area': float(np.max(areas)) if areas.size else 0.0,

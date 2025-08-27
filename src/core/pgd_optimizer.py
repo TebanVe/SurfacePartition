@@ -2,7 +2,7 @@ import os
 import datetime
 import time
 import logging
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 import h5py
 import numpy as np
@@ -70,6 +70,8 @@ class ProjectedGradientOptimizer:
 			'iterations': [],
 			'energy_changes': [],
 			'area_evolution': [],
+			'gnorm': [],
+			'feas': [],
 		}
 		self.prev_x = None
 		self.curr_x = None
@@ -122,12 +124,16 @@ class ProjectedGradientOptimizer:
 		area_constraints = area_sums[:-1] - self.target_area
 		return np.concatenate([row_sums, area_constraints])
 
-	def _save_iteration_h5(self, h5, k: int, x: np.ndarray, g: np.ndarray, f: float, cvec: np.ndarray):
+	def _save_iteration_h5(self, h5, k: int, x: np.ndarray, g: np.ndarray, f: float, cvec: np.ndarray, save_vars: List[str]):
 		grp = h5.create_group(f'iter_{k}')
-		grp.create_dataset('x', data=x)
-		grp.create_dataset('gradient', data=g)
-		grp.create_dataset('objective', data=f)
-		grp.create_dataset('constraints', data=cvec)
+		if 'x' in save_vars:
+			grp.create_dataset('x', data=x)
+		if 'gradient' in save_vars:
+			grp.create_dataset('gradient', data=g)
+		if 'objective' in save_vars:
+			grp.create_dataset('objective', data=f)
+		if 'constraints' in save_vars:
+			grp.create_dataset('constraints', data=cvec)
 		grp.create_dataset('ismajor', data=True)
 
 	def _append_summary_line(self, fh, k: int, f: float, gnorm: float, cnorm: float, feas: float, step: float):
@@ -148,6 +154,15 @@ class ProjectedGradientOptimizer:
 		results_dir: Optional[str] = None,
 		run_name: Optional[str] = None,
 		is_mesh_refinement: bool = False,
+		data_save_stride: int = 1,
+		data_save_vars: Optional[List[str]] = None,
+		save_first_last: bool = True,
+		refine_trigger_mode: str = 'full',
+		refine_gnorm_patience: int = 30,
+		refine_gnorm_delta: float = 1e-4,
+		refine_feas_patience: int = 30,
+		refine_feas_delta: float = 1e-6,
+		enable_refinement_triggers: bool = True,
 	) -> Tuple[np.ndarray, bool]:
 		"""
 		Run PGD with per-step projection and Armijo backtracking.
@@ -195,6 +210,10 @@ class ProjectedGradientOptimizer:
 		self.logger.info("Starting PGD optimization")
 		start_time = time.time()
 
+		# Determine what to save in HDF5
+		save_vars_h5 = ['x'] if data_save_vars is None else list(data_save_vars)
+		stride = max(1, int(data_save_stride))
+
 		# Open files
 		with open(summary_filename, 'w') as summary_fh, h5py.File(internal_data_filename, 'w') as h5f:
 			# Optional header line (analyzer ignores lines starting with 'MAJOR')
@@ -232,8 +251,10 @@ class ProjectedGradientOptimizer:
 				cnorm_post = float(np.linalg.norm(cvec_post))
 				feas_post = float(np.max(np.abs(cvec_post))) if cvec_post.size > 0 else 0.0
 
-				# Save iteration (post-accept values)
-				self._save_iteration_h5(h5f, k, x, g_post, E, cvec_post)
+				# Save iteration (post-accept values) according to stride/vars
+				should_save_iter = (k % stride == 0) or (save_first_last and (k == 0 or k == maxiter - 1))
+				if should_save_iter:
+					self._save_iteration_h5(h5f, k, x, g_post, E, cvec_post, save_vars_h5)
 				self._append_summary_line(summary_fh, k, E, gnorm_post, cnorm_post, feas_post, step)
 				summary_fh.flush()
 				h5f.flush()
@@ -243,6 +264,8 @@ class ProjectedGradientOptimizer:
 				areas = self.v @ x.reshape(N, n)
 				self.log['area_evolution'].append(areas.copy())
 				self.log['energy_changes'].append(0.0 if k == 0 else (E - best_E))
+				self.log['gnorm'].append(gnorm_post)
+				self.log['feas'].append(feas_post)
 				self.prev_x = self.curr_x
 				self.curr_x = x.copy()
 
@@ -253,21 +276,35 @@ class ProjectedGradientOptimizer:
 
 				# Progress log
 				if k % max(1, log_frequency) == 0:
-					self.logger.info(f"  Iteration {k}: Energy={E:.6e}")
+					self.logger.info(f"  Iteration {k}: Energy={E:.12e}")
+					self.logger.info(f"    GNORM={gnorm_post:.6e}, FEAS={feas_post:.6e}, STEP={step:.3e}")
 					areas_log = self.v @ x.reshape(N, n)
 					self.logger.info(f"    Target area per partition: {self.target_area:.6e}")
 					self.logger.info(f"    Current partition areas: {areas_log}")
 
 				# Refinement trigger check
-				if k + 1 >= self.refine_patience:
+				if enable_refinement_triggers and (k + 1 >= self.refine_patience):
 					recent = self.log['energy_changes'][-self.refine_patience:]
 					stable = all(abs(de) < self.refine_delta_energy for de in recent)
 					if stable:
-						curr_gnorm = float(np.linalg.norm(self.compute_gradient(x)))
-						curr_feas = float(np.max(np.abs(self.constraint_fun(x))))
-						if curr_gnorm < self.refine_grad_tol and curr_feas < self.refine_constraint_tol:
-							self.logger.info(f"Refinement triggered at iteration {k}")
+						if refine_trigger_mode == 'energy':
+							self.logger.info(f"Refinement triggered at iteration {k} (energy criterion)")
 							raise RefinementTriggered()
+						else:
+							# plateau checks for gnorm and feas
+							gn_ok = (gnorm_post < self.refine_grad_tol)
+							fe_ok = (feas_post < self.refine_constraint_tol)
+							if not gn_ok and len(self.log['gnorm']) >= refine_gnorm_patience:
+								recent_g = self.log['gnorm'][-refine_gnorm_patience:]
+								gn_plateau = all(abs(recent_g[i] - recent_g[i-1]) < refine_gnorm_delta for i in range(1, len(recent_g)))
+								gn_ok = gn_ok or gn_plateau
+							if not fe_ok and len(self.log['feas']) >= refine_feas_patience:
+								recent_f = self.log['feas'][-refine_feas_patience:]
+								fe_plateau = all(abs(recent_f[i] - recent_f[i-1]) < refine_feas_delta for i in range(1, len(recent_f)))
+								fe_ok = fe_ok or fe_plateau
+							if gn_ok and fe_ok:
+								self.logger.info(f"Refinement triggered at iteration {k}")
+								raise RefinementTriggered()
 
 		# Final summary log
 		elapsed = time.time() - start_time

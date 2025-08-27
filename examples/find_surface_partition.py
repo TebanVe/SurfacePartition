@@ -11,6 +11,7 @@ import getpass
 import platform
 import socket
 import numpy as np
+import gc
 
 # Add src
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -51,6 +52,10 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 	levels_meta = []
 	logger.info(f"Starting surface partition optimization with {refinement_levels} refinement levels")
 
+	# Keep lightweight state for interpolation between levels
+	prev_vertices = None
+	prev_x_opt = None
+
 	for level in range(refinement_levels):
 		logger.info("=" * 80)
 		logger.info(f"Refinement Level {level+1}/{refinement_levels}")
@@ -79,13 +84,13 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 		optimizer_name = 'PySLSQP' if getattr(config, 'optimizer_type', 'pyslsqp') == 'pyslsqp' else 'PGD'
 		if optimizer_name == 'PySLSQP':
 			optimizer = PySLSQPOptimizer(K=mesh.K, M=mesh.M, v=mesh.v, n_partitions=config.n_partitions,
-									epsilon=epsilon, total_area=total_area,
-									lambda_penalty=getattr(config, 'lambda_penalty', 0.0),
-									refine_patience=int(getattr(config, 'refine_patience', 30)),
-									refine_delta_energy=float(getattr(config, 'refine_delta_energy', 1e-4)),
-									refine_grad_tol=float(getattr(config, 'refine_grad_tol', 1e-2)),
-									refine_constraint_tol=float(getattr(config, 'refine_constraint_tol', 1e-2)),
-									logger=logger)
+								epsilon=epsilon, total_area=total_area,
+								lambda_penalty=getattr(config, 'lambda_penalty', 0.0),
+								refine_patience=int(getattr(config, 'refine_patience', 30)),
+								refine_delta_energy=float(getattr(config, 'refine_delta_energy', 1e-4)),
+								refine_grad_tol=float(getattr(config, 'refine_grad_tol', 1e-2)),
+								refine_constraint_tol=float(getattr(config, 'refine_constraint_tol', 1e-2)),
+								logger=logger)
 		else:
 			optimizer = ProjectedGradientOptimizer(K=mesh.K, M=mesh.M, v=mesh.v, n_partitions=config.n_partitions,
 										epsilon=epsilon, total_area=total_area,
@@ -100,8 +105,8 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 		if level == 0:
 			x0 = create_initial_condition_with_projection(N, config.n_partitions, mesh.v, seed=config.seed, method="iterative")
 		else:
-			prev = results[-1]
-			x0 = nearest_neighbor_interpolate(prev['mesh'].vertices, mesh.vertices, prev['x_opt'], config.n_partitions)
+			# Interpolate from previous level using cached lightweight state
+			x0 = nearest_neighbor_interpolate(prev_vertices, mesh.vertices, prev_x_opt, config.n_partitions)
 			A = x0.reshape(N, config.n_partitions)
 			A = orthogonal_projection_iterative(A, np.ones(config.n_partitions), np.sum(mesh.v) / config.n_partitions * np.ones(config.n_partitions), mesh.v, max_iter=100, tol=1e-8)
 			x0 = A.flatten()
@@ -131,6 +136,16 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 					results_dir=outdir,
 					run_name=f"pgd_part{config.n_partitions}_v1{label1}{provider.get_resolution()[0]}_v2{label2}{provider.get_resolution()[1]}_level{level}",
 					is_mesh_refinement=(level > 0),
+					data_save_stride=int(getattr(config, 'h5_save_stride', 1)),
+					data_save_vars=getattr(config, 'h5_save_vars', ['x']),
+					save_first_last=bool(getattr(config, 'h5_always_save_first_last', True)),
+					log_frequency=int(getattr(config, 'run_log_frequency', getattr(config, 'log_frequency', 50))),
+					refine_trigger_mode=str(getattr(config, 'refine_trigger_mode', 'full')),
+					refine_gnorm_patience=int(getattr(config, 'refine_gnorm_patience', 30)),
+					refine_gnorm_delta=float(getattr(config, 'refine_gnorm_delta', 1e-4)),
+					refine_feas_patience=int(getattr(config, 'refine_feas_patience', 30)),
+					refine_feas_delta=float(getattr(config, 'refine_feas_delta', 1e-6)),
+					enable_refinement_triggers=bool(getattr(config, 'enable_refinement_triggers', True)),
 				)
 		except RefinementTriggered:
 			logger.info(f"Refinement triggered early at level {level+1}")
@@ -141,7 +156,6 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 		energy_val = optimizer.compute_energy(x_opt)
 		results.append({
 			'level': level,
-			'mesh': mesh,
 			'epsilon': epsilon,
 			'x_opt': x_opt,
 			'energy': energy_val,
@@ -156,6 +170,13 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 			'N': int(N),
 			'v_sum': float(np.sum(mesh.v)),
 			'epsilon': float(epsilon),
+			'files': {
+				'internal_data': os.path.abspath(getattr(optimizer, 'internal_data_file', '')),
+				'summary': os.path.abspath(getattr(optimizer, 'summary_file', '')),
+			},
+			'iters': {
+				'num_iterations': int(results[-1]['iterations'])
+			}
 		})
 
 		# Per-level result summary
@@ -165,10 +186,24 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 		logger.info(f"  Time: {elapsed:.2f}s")
 		logger.info(f"  Success: {success}")
 
-	# Save final solution
+		# Prepare for next level: cache minimal data for interpolation
+		prev_vertices = mesh.vertices.copy()
+		prev_x_opt = x_opt.copy()
+
+		# Free heavy objects before moving to next level
+		if level < refinement_levels - 1:
+			try:
+				mesh.K = None
+				mesh.M = None
+			except Exception:
+				pass
+			del optimizer
+			del mesh
+			gc.collect()
+
+	# Save final solution (use last built mesh still in scope)
 	final = results[-1]
 	x_opt = final['x_opt']
-	mesh = final['mesh']
 	solution_path = os.path.join(solution_dir or outdir, f"surface_part{config.n_partitions}_surf{surface}_v1{label1}{v1_info}_v2{label2}{v2_info}_lam{getattr(config, 'lambda_penalty', 0.0)}_seed{config.seed}_{timestamp}.h5")
 	with h5py.File(solution_path, 'w') as f:
 		f.create_dataset('x_opt', data=x_opt)
@@ -192,6 +227,19 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 		f.attrs['optimizer'] = 'PySLSQP' if optimizer_name == 'PySLSQP' else 'PGD'
 		f.attrs['use_analytic'] = bool(getattr(config, 'use_analytic', True))
 
+	# Compute cumulative iteration offsets per level
+	cum = 0
+	for lm in levels_meta:
+		ni = int(lm.get('iters', {}).get('num_iterations', 0))
+		lm['iters']['start_index_global'] = int(cum)
+		lm['iters']['end_index_global'] = int(cum + max(ni - 1, 0))
+		cum += ni
+
+	# Theoretical total area (if provider exposes it)
+	theoretical_total_area = None
+	if hasattr(provider, 'theoretical_total_area') and callable(provider.theoretical_total_area):
+		theoretical_total_area = float(provider.theoretical_total_area())
+
 	# Save metadata
 	meta = {
 		'input_parameters': {
@@ -203,21 +251,39 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 			'resolution_labels': [label1, label2],
 			'resolution_summary': [v1_info, v2_info],
 			'use_discrete_area_for_constraints': bool(getattr(config, 'use_discrete_area_for_constraints', True)),
+			'n_partitions': int(config.n_partitions),
+			'optimizer_type': 'pyslsqp' if optimizer_name == 'PySLSQP' else 'pgd',
+			# PGD-only parameters persisted for analysis/reproducibility
+			'run_log_frequency': int(getattr(config, 'run_log_frequency', getattr(config, 'log_frequency', 50))),
+			'h5_save_stride': int(getattr(config, 'h5_save_stride', 1)),
+			'h5_save_vars': list(getattr(config, 'h5_save_vars', ['x'])),
+			'h5_always_save_first_last': bool(getattr(config, 'h5_always_save_first_last', True)),
+			'refine_trigger_mode': str(getattr(config, 'refine_trigger_mode', 'full')),
+			'refine_gnorm_patience': int(getattr(config, 'refine_gnorm_patience', 30)),
+			'refine_gnorm_delta': float(getattr(config, 'refine_gnorm_delta', 1e-4)),
+			'refine_feas_patience': int(getattr(config, 'refine_feas_patience', 30)),
+			'refine_feas_delta': float(getattr(config, 'refine_feas_delta', 1e-6)),
+			'enable_refinement_triggers': bool(getattr(config, 'enable_refinement_triggers', True)),
 		},
 		'levels': levels_meta,
 		'final_mesh_stats': mesh.get_mesh_statistics(),
-		'final_epsilon': float(final['epsilon']),
-		'final_energy': float(final['energy']),
-		'final_iterations': int(final['iterations']),
-		'run_time_seconds': float(final['time']),
-		'success': bool(final['success']),
+		'final_epsilon': float(results[-1]['epsilon']),
+		'final_energy': float(results[-1]['energy']),
+		'final_iterations': int(results[-1]['iterations']),
+		'run_time_seconds': float(results[-1]['time']),
+		'success': bool(results[-1]['success']),
 		'datetime': timestamp,
 		'user': getpass.getuser(),
 		'hostname': socket.gethostname(),
 		'platform': platform.platform(),
 		'python_version': platform.python_version(),
-		'solution_path': solution_path,
-		'optimizer': 'PySLSQP' if optimizer_name == 'PySLSQP' else 'PGD'
+		'solution_path': os.path.abspath(solution_path),
+		'optimizer': 'PySLSQP' if optimizer_name == 'PySLSQP' else 'PGD',
+		'theoretical_total_area': theoretical_total_area,
+		'files': {
+			'run_log': os.path.abspath(logfile_path),
+			'solution_path': os.path.abspath(solution_path),
+		}
 	}
 	with open(os.path.join(outdir, 'metadata.yaml'), 'w') as f:
 		yaml.dump(meta, f)

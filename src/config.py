@@ -51,6 +51,13 @@ class Config:
 		self.refine_delta_energy = 1e-4
 		self.refine_grad_tol = 1e-2
 		self.refine_constraint_tol = 1e-2
+		# Plateau criteria for gradient and feasibility
+		self.refine_gnorm_patience = 30
+		self.refine_gnorm_delta = 1e-4
+		self.refine_feas_patience = 30
+		self.refine_feas_delta = 1e-6
+		# Enable/disable early refinement triggers
+		self.enable_refinement_triggers = True
 		
 		# Initial condition parameters
 		self.use_custom_initial_condition = False
@@ -72,6 +79,13 @@ class Config:
 		
 		# PySLSQP parameters
 		self.pyslsqp_save_itr = 'major'
+		
+		# PGD-only: artifact size and logging controls
+		self.run_log_frequency = 100  # console/file logging cadence for PGD
+		self.h5_save_stride = 10      # save every k-th iterate to HDF5
+		self.h5_save_vars = ['x']     # datasets to store in HDF5 among ['x','constraints']
+		self.h5_always_save_first_last = True  # ensure first/last are saved regardless of stride
+		self.refine_trigger_mode = 'full'  # 'full' uses energy+gnorm+feas, 'energy' uses energy only
 	
 		# Override with params if provided
 		if params:
