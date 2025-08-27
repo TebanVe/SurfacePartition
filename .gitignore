@@ -32,4 +32,8 @@ visualizations/
 *.jpg
 *.jpeg
 *.pdf
-*.out 
+*.out
+
+# Specific files to ignore
+gradient_descend_with_projection.py
+manifold_partition.md 
