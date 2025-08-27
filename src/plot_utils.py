@@ -3,6 +3,34 @@ import matplotlib.pyplot as plt
 import matplotlib.tri as tri
 from typing import Optional, Dict, List, Tuple
 
+def build_plot_title(optimizer: str,
+                     surface: Optional[str],
+                     label1: str,
+                     var1: int,
+                     label2: str,
+                     var2: int,
+                     lambda_penalty: Optional[float],
+                     seed: Optional[int],
+                     use_analytic: Optional[bool] = None,
+                     prefix: Optional[str] = None) -> str:
+    parts = []
+    if prefix:
+        parts.append(prefix)
+    if optimizer:
+        parts.append(f"{optimizer}")
+    if surface:
+        parts.append(f"surf={surface}")
+    parts.append(f"v_{label1}={var1}")
+    parts.append(f"n_{label2}={var2}")
+    if lambda_penalty is not None:
+        parts.append(f"λ={lambda_penalty}")
+    if seed is not None:
+        parts.append(f"seed={seed}")
+    if use_analytic is not None:
+        parts.append(f"analytic={'yes' if use_analytic else 'no'}")
+    return ", ".join(parts)
+
+
 def plot_ring_mesh(ring_mesh, show_triangles=True, show_vertices=True, 
                    figsize=(10, 8), title="Ring Mesh"):
     """

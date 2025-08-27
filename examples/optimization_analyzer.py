@@ -19,65 +19,55 @@ import re
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from logging_config import get_logger
+from surfaces.ring import RingMeshProvider
 
 def load_pyslsqp_internal_data(hdf5_file_path: str) -> Optional[Dict]:
-    """
-    Load internal optimization data from PySLSQP HDF5 file.
-    
-    Args:
-        hdf5_file_path: Path to HDF5 file containing iteration data
-        
-    Returns:
-        Dictionary containing optimization data or None if file doesn't exist
-    """
-    if not os.path.exists(hdf5_file_path):
-        return None
-    
-    try:
-        with h5py.File(hdf5_file_path, 'r') as f:
-            data = {}
-            
-            # Collect all iter_* groups
-            iter_keys = [k for k in f.keys() if k.startswith('iter_')]
-            iter_keys.sort(key=lambda x: int(x.split('_')[1]))
-            
-            x_list = []
-            grad_list = []
-            obj_list = []
-            constraints_list = []
-            ismajor_list = []
-            
-            for k in iter_keys:
-                g = f[k]
-                if 'x' in g:
-                    x_list.append(g['x'][:])
-                if 'gradient' in g:
-                    grad_list.append(g['gradient'][:])
-                if 'objective' in g:
-                    obj_list.append(g['objective'][()])
-                if 'constraints' in g:
-                    constraints_list.append(g['constraints'][:])
-                if 'ismajor' in g:
-                    ismajor_list.append(g['ismajor'][()])
-                else:
-                    ismajor_list.append(True)  # Default to True if not present
-            
-            if x_list:
-                data['x'] = np.array(x_list)
-            if grad_list:
-                data['gradient'] = np.array(grad_list)
-            if obj_list:
-                data['objective'] = np.array(obj_list)
-            if constraints_list:
-                data['constraints'] = np.array(constraints_list)
-            if ismajor_list:
-                data['ismajor'] = np.array(ismajor_list)
-            
-            return data
-            
-    except Exception as e:
-        print(f"Error loading HDF5 file {hdf5_file_path}: {e}")
-        return None
+	"""
+	Load internal optimization data from HDF5 file and return arrays plus
+	iteration indices parsed from group names.
+	"""
+	if not os.path.exists(hdf5_file_path):
+		return None
+	try:
+		with h5py.File(hdf5_file_path, 'r') as f:
+			data: Dict[str, np.ndarray] = {}
+			iter_keys = [k for k in f.keys() if k.startswith('iter_')]
+			iter_keys.sort(key=lambda x: int(x.split('_')[1]))
+			iters = [int(k.split('_')[1]) for k in iter_keys]
+			x_list: List[np.ndarray] = []
+			grad_list: List[np.ndarray] = []
+			obj_list: List[float] = []
+			constraints_list: List[np.ndarray] = []
+			ismajor_list: List[bool] = []
+			for k in iter_keys:
+				g = f[k]
+				if 'x' in g:
+					x_list.append(g['x'][:])
+				if 'gradient' in g:
+					grad_list.append(g['gradient'][:])
+				if 'objective' in g:
+					obj_list.append(g['objective'][()])
+				if 'constraints' in g:
+					constraints_list.append(g['constraints'][:])
+				if 'ismajor' in g:
+					ismajor_list.append(bool(g['ismajor'][()]))
+				else:
+					ismajor_list.append(True)
+			if x_list:
+				data['x'] = np.array(x_list)
+			if grad_list:
+				data['gradient'] = np.array(grad_list)
+			if obj_list:
+				data['objective'] = np.array(obj_list)
+			if constraints_list:
+				data['constraints'] = np.array(constraints_list)
+			if ismajor_list:
+				data['ismajor'] = np.array(ismajor_list)
+			data['iters'] = np.array(iters, dtype=int)
+			return data
+	except Exception as e:
+		print(f"Error loading HDF5 file {hdf5_file_path}: {e}")
+		return None
 
 def parse_pyslsqp_summary_file(summary_file_path: str) -> Optional[Dict]:
     """
@@ -129,16 +119,10 @@ def parse_pyslsqp_summary_file(summary_file_path: str) -> Optional[Dict]:
         print(f"Error parsing summary file {summary_file_path}: {e}")
         return None
 
-def load_pyslsqp_optimization_data(results: List[Dict], logger=None) -> Tuple[List[float], List[float], List[float], List[float], List[int]]:
+def load_pyslsqp_optimization_data(results: List[Dict], logger=None) -> Tuple[List[float], List[float], List[float], List[float], List[float], List[int]]:
     """
-    Load and aggregate optimization data from PySLSQP summary files across all refinement levels.
-    
-    Args:
-        results: List of results from each refinement level
-        logger: Optional logger for output
-        
-    Returns:
-        Tuple of (all_energies, all_grad_norms, all_constraints, all_steps, level_boundaries)
+    Load and aggregate optimization data from summary files across all refinement levels.
+    Returns (energies, grad_norms, cnorms, feas, steps, level_boundaries).
     """
     if logger is None:
         logger = get_logger(__name__)
@@ -147,6 +131,7 @@ def load_pyslsqp_optimization_data(results: List[Dict], logger=None) -> Tuple[Li
     all_grad_norms = []
     all_constraints = []
     all_steps = []
+    all_feas = []
     level_boundaries = []
     total_iters = 0
     
@@ -163,11 +148,13 @@ def load_pyslsqp_optimization_data(results: List[Dict], logger=None) -> Tuple[Li
                 level_grad_norms = data['grad_norms']
                 level_constraints = data['constraints']
                 level_steps = data['steps']
+                level_feas = data.get('feas', [])
                 
                 all_energies.extend(level_energies)
                 all_grad_norms.extend(level_grad_norms)
                 all_constraints.extend(level_constraints)
                 all_steps.extend(level_steps)
+                all_feas.extend(level_feas)
                 
                 # Update iteration count and boundaries
                 num_iters = len(level_energies)
@@ -190,102 +177,71 @@ def load_pyslsqp_optimization_data(results: List[Dict], logger=None) -> Tuple[Li
     if logger:
         logger.info(f"Loaded total of {total_iters} iterations")
     
-    return all_energies, all_grad_norms, all_constraints, all_steps, level_boundaries
+    return all_energies, all_grad_norms, all_constraints, all_feas, all_steps, level_boundaries
 
 def extract_constraint_evolution_from_pyslsqp_data(results: List[Dict], n_partitions: int, 
-                                                  logger=None, major_only: bool = False) -> Dict:
-    """
-    Extract constraint evolution data from PySLSQP internal data.
-    
-    Args:
-        results: List of optimization results
-        n_partitions: Number of partitions
-        logger: Logger instance
-        major_only: Whether to use only major iterations
-        
-    Returns:
-        Dictionary containing constraint evolution data with structure:
-        - 'cnorm': List of constraint norm values
-        - 'feas': List of feasibility values  
-        - 'areas': List of arrays with shape (n_partitions,) - area of each partition
-        - 'unity': List of arrays with shape (N,) - unity violations for each vertex
-    """
-    if logger is None:
-        logger = get_logger(__name__)
-    
-    # Initialize data structures
-    cnorm_evolution = []
-    feas_evolution = []
-    area_evolution = []
-    unity_evolution = []
-    
-    for result in results:
-        internal_data_file = result.get('internal_data_file')
-        if internal_data_file and os.path.exists(internal_data_file):
-            data = load_pyslsqp_internal_data(internal_data_file)
-            if data is None:
-                continue
-            
-            # Use the level-specific v and mesh size
-            v_level = result.get('v')
-            if v_level is None:
-                logger.warning("No 'v' vector found in result, skipping")
-                continue
-            
-            # Filter by major iterations if requested
-            if major_only and 'ismajor' in data:
-                major_indices = np.where(data['ismajor'])[0]
-                x_data = data['x'][major_indices]
-                constraints_data = data.get('constraints', [])[major_indices] if 'constraints' in data else []
-                if logger:
-                    logger.debug(f"  Filtered to {len(major_indices)} major iterations from {len(data['x'])} total iterations")
-            else:
-                x_data = data['x']
-                constraints_data = data.get('constraints', [])
-                if logger:
-                    logger.debug(f"  Using all {len(x_data)} iterations")
-            
-            # Compute constraint evolution for each x
-            for i, x in enumerate(x_data):
-                # Determine N from the actual data size
-                N = len(x) // n_partitions
-                if len(x) != N * n_partitions:
-                    logger.warning(f"Data size {len(x)} is not divisible by n_partitions {n_partitions}")
-                    continue
-                
-                # Reshape x to matrix form
-                phi = x.reshape(N, n_partitions)
-                
-                # Compute areas for all partitions (v @ phi gives area per partition)
-                areas = v_level @ phi
-                area_evolution.append(areas.copy())
-                
-                # Compute partition unity violations for all vertices
-                unity_violations = np.sum(phi, axis=1) - 1.0
-                unity_evolution.append(unity_violations.copy())
-                
-                # Store constraint norm and feasibility if available
-                if i < len(constraints_data):
-                    cnorm_evolution.append(np.linalg.norm(constraints_data[i]))
-                    feas_evolution.append(np.max(np.abs(constraints_data[i])))
-                else:
-                    cnorm_evolution.append(0.0)
-                    feas_evolution.append(0.0)
-            
-            if logger:
-                logger.debug(f"  Extracted {len(x_data)} constraint snapshots")
-    
-    if logger:
-        logger.info(f"Extracted total of {len(area_evolution)} constraint evolution snapshots")
-        logger.info(f"CNORM evolution: {len(cnorm_evolution)} points")
-        logger.info(f"FEAS evolution: {len(feas_evolution)} points")
-    
-    return {
-        'cnorm': cnorm_evolution,
-        'feas': feas_evolution,
-        'areas': area_evolution,
-        'unity': unity_evolution
-    }
+													 logger=None, major_only: bool = False) -> Dict:
+	"""
+	Extract constraint evolution data and iteration indices.
+	Returns dict with cnorm, feas, areas, unity, and area_iters (global indices).
+	"""
+	if logger is None:
+		logger = get_logger(__name__)
+	cnorm_evolution: List[float] = []
+	feas_evolution: List[float] = []
+	area_evolution: List[np.ndarray] = []
+	unity_evolution: List[np.ndarray] = []
+	area_iters: List[int] = []
+	for result in results:
+		internal_data_file = result.get('internal_data_file')
+		start_global = int(result.get('start_index_global', 0))
+		if internal_data_file and os.path.exists(internal_data_file):
+			data = load_pyslsqp_internal_data(internal_data_file)
+			if data is None or 'x' not in data:
+				continue
+			v_level = result.get('v')
+			if v_level is None:
+				logger.warning("No 'v' vector found in result, skipping")
+				continue
+			# Select series
+			x_all = data['x']
+			iters_local = data.get('iters')
+			if major_only and 'ismajor' in data:
+				major_idx = np.where(data['ismajor'])[0]
+				x_all = x_all[major_idx]
+				if iters_local is not None:
+					iters_local = iters_local[major_idx]
+			# Compute
+			for i, x in enumerate(x_all):
+				N = len(x) // n_partitions
+				if len(x) != N * n_partitions:
+					logger.warning(f"Data size {len(x)} is not divisible by n_partitions {n_partitions}")
+					continue
+				phi = x.reshape(N, n_partitions)
+				areas = v_level @ phi
+				area_evolution.append(areas.copy())
+				if iters_local is not None:
+					area_iters.append(int(start_global + int(iters_local[i])))
+				# unity violation per vertex (kept for potential homogeneous plotting)
+				unity_violations = np.sum(phi, axis=1) - 1.0
+				unity_evolution.append(unity_violations.copy())
+			# constraints/feas if present
+			if 'constraints' in data:
+				c_all = data['constraints']
+				if major_only and 'ismajor' in data:
+					c_all = c_all[major_idx]
+				for j in range(min(len(c_all), len(x_all))):
+					cnorm_evolution.append(float(np.linalg.norm(c_all[j])))
+					feas_evolution.append(float(np.max(np.abs(c_all[j]))))
+	if logger:
+		logger.info(f"Extracted total of {len(area_evolution)} area snapshots")
+	return {
+		'cnorm': cnorm_evolution,
+		'feas': feas_evolution,
+		'areas': area_evolution,
+		'unity': unity_evolution,
+		'area_iters': area_iters,
+	}
 
 def compute_unity_last_level(internal_data_file: str, n_partitions: int, major_only: bool = False, logger=None) -> Optional[np.ndarray]:
     """
@@ -327,7 +283,8 @@ def plot_refinement_optimization_metrics(energies: List[float], grad_norms: List
                                        n_angular_info: Optional[str] = None,
                                        lambda_penalty: Optional[float] = None,
                                        seed: Optional[int] = None,
-                                       use_analytic: Optional[bool] = None):
+                                       use_analytic: Optional[bool] = None,
+                                       title_override: Optional[str] = None):
     """
     Create 2x2 grid of optimization metrics plots.
     
@@ -385,23 +342,25 @@ def plot_refinement_optimization_metrics(energies: List[float], grad_norms: List
             for ax in axes.flat:
                 ax.axvline(x=boundary, color='k', linestyle='--', alpha=0.5)
     
-    # Add title with parameters
-    title_parts = []
-    if n_partitions:
-        title_parts.append(f"n_partitions={n_partitions}")
-    if n_radial_info:
-        title_parts.append(f"n_radial={n_radial_info}")
-    if n_angular_info:
-        title_parts.append(f"n_angular={n_angular_info}")
-    if lambda_penalty is not None:
-        title_parts.append(f"lambda={lambda_penalty}")
-    if seed:
-        title_parts.append(f"seed={seed}")
-    if use_analytic is not None:
-        title_parts.append(f"analytic_gradients={'yes' if use_analytic else 'no'}")
-    
-    if title_parts:
-        fig.suptitle(f"PySLSQP Optimization Metrics: {', '.join(title_parts)}", fontsize=14)
+    # Title
+    if title_override:
+        fig.suptitle(title_override, fontsize=14)
+    else:
+        title_parts = []
+        if n_partitions:
+            title_parts.append(f"n_partitions={n_partitions}")
+        if n_radial_info:
+            title_parts.append(f"n_radial={n_radial_info}")
+        if n_angular_info:
+            title_parts.append(f"n_angular={n_angular_info}")
+        if lambda_penalty is not None:
+            title_parts.append(f"lambda={lambda_penalty}")
+        if seed:
+            title_parts.append(f"seed={seed}")
+        if use_analytic is not None:
+            title_parts.append(f"analytic_gradients={'yes' if use_analytic else 'no'}")
+        if title_parts:
+            fig.suptitle(f"PySLSQP Optimization Metrics: {', '.join(title_parts)}", fontsize=14)
     
     plt.tight_layout()
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
@@ -420,6 +379,9 @@ def plot_constraint_evolution(constraint_data: Dict, level_boundaries: List[int]
                             max_vertices_plot: int = 50,
                             unity_last_level: Optional[np.ndarray] = None,
                             unity_last_start: Optional[int] = None,
+                            unity_last_iters: Optional[np.ndarray] = None,
+                            theoretical_total_area: Optional[float] = None,
+                            title_override: Optional[str] = None,
                             logger=None):
     """
     Create 2x2 grid of constraint evolution plots.
@@ -449,6 +411,7 @@ def plot_constraint_evolution(constraint_data: Dict, level_boundaries: List[int]
     feas_evolution = constraint_data.get('feas', [])
     area_evolution = constraint_data.get('areas', [])
     unity_evolution = constraint_data.get('unity', [])
+    area_iters = np.array(constraint_data.get('_area_iters', [])) if constraint_data.get('_area_iters') is not None else None
     
     # Check if we have data
     if len(area_evolution) == 0:
@@ -502,21 +465,26 @@ def plot_constraint_evolution(constraint_data: Dict, level_boundaries: List[int]
                        ha='center', va='center', transform=axes[0, 1].transAxes)
         axes[0, 1].set_title('Feasibility Convergence')
     
-    # Plot area evolution
-    if area_evolution.shape[0] > 0:
-        n_partitions_actual = area_evolution.shape[1]
+    # Plot area evolution with sparse x
+    if isinstance(area_evolution, list) and len(area_evolution) > 0:
+        area_arr = np.array(area_evolution)
+        n_partitions_actual = area_arr.shape[1]
         
-        # Calculate target area for ring (π * (r_outer² - r_inner²) / n_partitions)
-        # Using default values from config if not available
-        r_inner = 0.5
-        r_outer = 1.0
-        theoretical_total_area = np.pi * (r_outer**2 - r_inner**2)
-        target_area = theoretical_total_area / n_partitions_actual
-        axes[1, 0].axhline(y=target_area, color='k', linestyle='-', label='Target Area')
+        # Target area: use theoretical total area if provided; else skip line
+        if theoretical_total_area is not None:
+            target_area = theoretical_total_area / n_partitions_actual
+            axes[1, 0].axhline(y=target_area, color='k', linestyle='-', label='Target Area')
+        
+        # Build x-axis
+        if isinstance(area_iters, np.ndarray) and area_iters.size == area_arr.shape[0]:
+            xs = area_iters
+        else:
+            # Fallback: regular spacing
+            xs = np.arange(area_arr.shape[0])
         
         # Plot each partition's area
         for i in range(n_partitions_actual):
-            axes[1, 0].plot(area_evolution[:, i], linestyle='--', alpha=0.7, 
+            axes[1, 0].plot(xs, area_arr[:, i], linestyle='--', alpha=0.7, 
                            label=f'Partition {i+1}')
         
         axes[1, 0].set_title('Area Evolution')
@@ -530,14 +498,15 @@ def plot_constraint_evolution(constraint_data: Dict, level_boundaries: List[int]
         axes[1, 0].set_title('Area Evolution')
     
     # Plot partition unity violations
-    if unity_last_level is not None and isinstance(unity_last_level, np.ndarray):
+    unity_last_level_data = unity_last_level
+    if unity_last_level_data is not None and isinstance(unity_last_level_data, np.ndarray):
         # Plot only last-level unity, aligned to global iteration axis
-        n_vertices = unity_last_level.shape[1]
+        n_vertices = unity_last_level_data.shape[1]
         if n_vertices > max_vertices_plot:
             vertex_indices = np.linspace(0, n_vertices-1, max_vertices_plot, dtype=int)
-            sampled_unity = unity_last_level[:, vertex_indices]
+            sampled_unity = unity_last_level_data[:, vertex_indices]
         else:
-            sampled_unity = unity_last_level
+            sampled_unity = unity_last_level_data
         x0 = unity_last_start or 0
         xs = np.arange(sampled_unity.shape[0]) + x0
         axes[1, 1].axhline(y=0, color='k', linestyle='-', alpha=0.5, label='Target (Unity)')
@@ -582,23 +551,25 @@ def plot_constraint_evolution(constraint_data: Dict, level_boundaries: List[int]
         for ax in axes.flat:
             ax.axvline(x=boundary, color='k', linestyle='--', alpha=0.5)
     
-    # Add title with parameters
-    title_parts = []
-    if n_partitions:
-        title_parts.append(f"n_partitions={n_partitions}")
-    if n_radial_info:
-        title_parts.append(f"n_radial={n_radial_info}")
-    if n_angular_info:
-        title_parts.append(f"n_angular={n_angular_info}")
-    if lambda_penalty is not None:
-        title_parts.append(f"lambda={lambda_penalty}")
-    if seed:
-        title_parts.append(f"seed={seed}")
-    if use_analytic is not None:
-        title_parts.append(f"analytic_gradients={'yes' if use_analytic else 'no'}")
-    
-    if title_parts:
-        fig.suptitle(f"PySLSQP Constraint Evolution: {', '.join(title_parts)}", fontsize=16)
+    # Title
+    if title_override:
+        fig.suptitle(title_override, fontsize=16)
+    else:
+        title_parts = []
+        if n_partitions:
+            title_parts.append(f"n_partitions={n_partitions}")
+        if n_radial_info:
+            title_parts.append(f"n_radial={n_radial_info}")
+        if n_angular_info:
+            title_parts.append(f"n_angular={n_angular_info}")
+        if lambda_penalty is not None:
+            title_parts.append(f"lambda={lambda_penalty}")
+        if seed:
+            title_parts.append(f"seed={seed}")
+        if use_analytic is not None:
+            title_parts.append(f"analytic_gradients={'yes' if use_analytic else 'no'}")
+        if title_parts:
+            fig.suptitle(f"PySLSQP Constraint Evolution: {', '.join(title_parts)}", fontsize=16)
     
     plt.tight_layout(rect=[0, 0, 1, 0.96])
     plt.savefig(save_path)
@@ -607,15 +578,10 @@ def plot_constraint_evolution(constraint_data: Dict, level_boundaries: List[int]
 def analyze_optimization_run(results_dir: str, output_dir: str = None):
     """
     Analyze an optimization run by loading data and generating plots.
-    
-    Args:
-        results_dir: Directory containing optimization results
-        output_dir: Output directory for plots (defaults to results_dir)
     """
     import sys
     import os
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-    from src.ring_mesh import RingMesh
     
     logger = get_logger(__name__)
     
@@ -636,32 +602,13 @@ def analyze_optimization_run(results_dir: str, output_dir: str = None):
     
     logger.info(f"Loaded metadata for run: {metadata.get('datetime', 'unknown')}")
     
-    # Find internal data files
-    internal_data_files = []
-    for file in os.listdir(results_dir):
-        if file.endswith('_internal_data.hdf5'):
-            internal_data_files.append(os.path.join(results_dir, file))
- 
-    if not internal_data_files:
-        logger.error("No internal data files found")
+    # Read per-level info directly from metadata
+    levels_meta = metadata.get('levels') if isinstance(metadata.get('levels'), list) else []
+    if not levels_meta:
+        logger.error("No level metadata found; cannot analyze run")
         return
-    
-    logger.info(f"Found {len(internal_data_files)} internal data files")
-    
-    # Helper to parse level and mesh sizes from filename
-    def parse_level_mesh_from_name(path: str) -> Tuple[int, Optional[int], Optional[int]]:
-        name = os.path.basename(path)
-        # Expect pattern like: pyslsqp_part{p}_nt{nr}_np{na}_lam{...}_seed{...}_level{L}_...
-        level_match = re.search(r"_level(\d+)", name)
-        nr_match = re.search(r"_nt(\d+)", name)
-        na_match = re.search(r"_np(\d+)", name)
-        level = int(level_match.group(1)) if level_match else 0
-        nr = int(nr_match.group(1)) if nr_match else None
-        na = int(na_match.group(1)) if na_match else None
-        return level, nr, na
-    
-    # Sort files by level index
-    internal_data_files.sort(key=lambda p: parse_level_mesh_from_name(p)[0])
+    # Sort by explicit level index
+    levels_meta_sorted = sorted(levels_meta, key=lambda x: int(x.get('level', 0)))
     
     # Load mesh parameters from metadata
     mesh_params = metadata.get('final_mesh_stats', {})
@@ -670,56 +617,80 @@ def analyze_optimization_run(results_dir: str, output_dir: str = None):
     r_inner = mesh_params.get('r_inner', 0.5)
     r_outer = mesh_params.get('r_outer', 1.0)
     
-    # Extract constraint evolution data
-    n_partitions = metadata.get('input_parameters', {}).get('RING_PARAMS', {}).get('n_partitions', 2)
+    # Extract constraint evolution data using metadata exclusively
+    surface = metadata.get('input_parameters', {}).get('surface')
+    n_partitions = int(metadata.get('input_parameters', {}).get('n_partitions', metadata.get('n_partitions', 2)))
     results = []
-    for internal_data_file in internal_data_files:
-        level, nr_level, na_level = parse_level_mesh_from_name(internal_data_file)
-        # Build per-level mesh to get the matching v
-        nr_eff = nr_level if nr_level is not None else n_radial
-        na_eff = na_level if na_level is not None else n_angular
-        mesh_level = RingMesh(nr_eff, na_eff, r_inner, r_outer)
+    theoretical_total_area = metadata.get('theoretical_total_area')
+    provider = RingMeshProvider(n_radial, n_angular, r_inner, r_outer)
+    if theoretical_total_area is None and hasattr(provider, 'theoretical_total_area'):
+        theoretical_total_area = provider.theoretical_total_area()
+    for lm in levels_meta_sorted:
+        nr_eff = int(lm.get('nr', lm.get('nt', lm.get('v1', n_radial))))
+        na_eff = int(lm.get('na', lm.get('np', lm.get('v2', n_angular))))
+        provider.set_resolution(nr_eff, na_eff)
+        mesh_level = provider.build()
         mesh_level.compute_matrices()
         v_level = mesh_level.v
-        data = load_pyslsqp_internal_data(internal_data_file)
-        if data:
-            results.append({
-                'internal_data_file': internal_data_file,
-                'v': v_level
-            })
-    
+        internal_data_file = lm.get('files', {}).get('internal_data')
+        start_global = int(lm.get('iters', {}).get('start_index_global', 0))
+        if internal_data_file and os.path.exists(internal_data_file):
+            results.append({'internal_data_file': internal_data_file, 'v': v_level, 'N_meta': int(lm.get('N', len(v_level))), 'start_index_global': start_global})
+     
     constraint_data = extract_constraint_evolution_from_pyslsqp_data(results, n_partitions, logger)
     # Compute last-level unity violations and iteration offset for plotting
-    last_internal_file = internal_data_files[-1]
-    unity_last_level = compute_unity_last_level(last_internal_file, n_partitions, major_only=False, logger=logger)
+    last_level_meta = levels_meta_sorted[-1]
+    last_internal_file = last_level_meta.get('files', {}).get('internal_data')
+    unity_last_level = None
+    unity_last_iters_local = None
+    if last_internal_file and os.path.exists(last_internal_file):
+        unity_last_level = compute_unity_last_level(last_internal_file, n_partitions, major_only=False, logger=logger)
+        unity_last_iters_local = load_pyslsqp_internal_data(last_internal_file).get('iters')
     
-    # Load optimization data from summary files
+    # Load optimization data from summary files listed in metadata
     summary_files = []
-    for file in os.listdir(results_dir):
-        if file.endswith('_summary.out'):
-            summary_files.append(os.path.join(results_dir, file))
-    # Sort summaries by level to align with internal data order
-    summary_files.sort(key=lambda p: parse_level_mesh_from_name(p)[0])
-
+    for lm in levels_meta_sorted:
+        sfile = lm.get('files', {}).get('summary')
+        if sfile and os.path.exists(sfile):
+            summary_files.append(sfile)
     if not summary_files:
-        logger.error("No summary files found")
+        logger.error("No summary files found in metadata")
         return
- 
-    # Load optimization data
-    energies, grad_norms, constraints, steps, level_boundaries = load_pyslsqp_optimization_data(
+    energies, grad_norms, cnorms, feas_series, steps, level_boundaries = load_pyslsqp_optimization_data(
         [{'summary_file': f} for f in summary_files], logger
     )
-    # Determine global iteration offset for last level
-    unity_last_start = level_boundaries[-2] if len(level_boundaries) > 1 else 0
+    # Prefer summary-derived CNORM/FEAS series when available
+    if cnorms:
+        constraint_data['cnorm'] = cnorms
+    if feas_series:
+        constraint_data['feas'] = feas_series
+    
+    # Determine global iteration offset for last level from metadata if available
+    unity_last_start = int(last_level_meta.get('iters', {}).get('start_index_global', (level_boundaries[-2] if len(level_boundaries) > 1 else 0)))
     
     # Create optimization metrics plot
+    # Build common title from metadata when available
+    title_labels = metadata.get('input_parameters', {}).get('resolution_labels') or ['v1', 'v2']
+    label1 = title_labels[0]
+    label2 = title_labels[1] if len(title_labels) > 1 else 'v2'
+    last_level = levels_meta_sorted[-1] if isinstance(levels_meta_sorted, list) and levels_meta_sorted else {}
+    var1_val = int(last_level.get(label1, mesh_params.get('n_radial', 0)))
+    var2_val = int(last_level.get(label2, mesh_params.get('n_angular', 0)))
+    optimizer_name = metadata.get('optimizer') or 'PGD'
+    lam = metadata.get('input_parameters', {}).get('lambda_penalty')
+    seed = metadata.get('input_parameters', {}).get('seed')
+    use_analytic_flag = metadata.get('input_parameters', {}).get('use_analytic')
+    from src.plot_utils import build_plot_title
+    metrics_title = build_plot_title(optimizer_name, surface, label1, var1_val, label2, var2_val, lam, seed, use_analytic_flag, prefix='Optimization Metrics')
     plot_refinement_optimization_metrics(
-        energies, grad_norms, constraints, steps, level_boundaries,
+        energies, grad_norms, cnorms, steps, level_boundaries,
         save_path=os.path.join(output_dir, 'refinement_optimization_metrics.png'),
-        use_analytic=metadata.get('input_parameters', {}).get('use_analytic')
+        use_analytic=metadata.get('input_parameters', {}).get('use_analytic'),
+        title_override=metrics_title
     )
     
     # Create constraint evolution plot
+    constraint_title = build_plot_title(optimizer_name, surface, label1, var1_val, label2, var2_val, lam, seed, use_analytic_flag, prefix='Constraint Evolution')
     plot_constraint_evolution(
         constraint_data, level_boundaries,
         save_path=os.path.join(output_dir, 'constraint_evolution.png'),
@@ -731,6 +702,9 @@ def analyze_optimization_run(results_dir: str, output_dir: str = None):
         use_analytic=metadata.get('input_parameters', {}).get('use_analytic'),
         unity_last_level=unity_last_level,
         unity_last_start=unity_last_start,
+        unity_last_iters=unity_last_iters_local,
+        theoretical_total_area=theoretical_total_area,
+        title_override=constraint_title,
         logger=logger
     )
     

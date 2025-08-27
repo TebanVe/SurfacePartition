@@ -15,4 +15,25 @@ venv/
 
 # OS
 .DS_Store
-Thumbs.db 
+Thumbs.db
+
+# Project-specific directories (generated files, logs, results)
+results/
+.cursor/
+legacy/
+logs/
+visualizations/
+
+# Additional Python/ML patterns
+*.h5
+*.hdf5
+*.log
+*.png
+*.jpg
+*.jpeg
+*.pdf
+*.out
+
+# Specific files to ignore
+gradient_descend_with_projection.py
+manifold_partition.md 
