@@ -145,7 +145,7 @@ optimizer_type: 'pyslsqp'  # or 'pgd'
 
 ### Mesh Refinement
 
-Refinement is configured in the YAML file, not via command-line arguments:
+Refinement is configured in the YAML file:
 ```yaml
 refinement_levels: 3
 n_radial_increment: 2
@@ -200,6 +200,8 @@ The project uses comprehensive configuration through `parameters/input.yaml`. Ke
 - `h5_save_stride`: HDF5 output frequency
 - `h5_save_vars`: Variables to save in HDF5 files
 - `run_log_frequency`: Console logging frequency
+- `penalty_target_mode`: Constant‑phase penalty target; `fixed` (paper, uses μ_target=1/n) or `adaptive` (uses current μ)
+- `penalty_eps`: Small stabilizer added to target denominators
 
 ## Core Components
 
@@ -221,6 +223,8 @@ The project uses comprehensive configuration through `parameters/input.yaml`. Ke
 
 ### PGD Optimizer (`src/core/pgd_optimizer.py`)
 - **Projected gradient descent** with constraint satisfaction
+- **FEM-weighted constant-phase penalty** using `v = 1^T M` and `W = Σ v` for mean/variance, consistent with FEM setting (`docs/starget/constant_phase_penalty_derivation.tex`)
+- **Penalty modes**: fixed target (paper) or adaptive target; gradients implemented per weighted formulas
 - **Configurable output** for memory efficiency
 - **Plateau detection** for intelligent refinement
 

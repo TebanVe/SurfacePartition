@@ -86,7 +86,10 @@ class Config:
 		self.h5_save_vars = ['x']     # datasets to store in HDF5 among ['x','constraints']
 		self.h5_always_save_first_last = True  # ensure first/last are saved regardless of stride
 		self.refine_trigger_mode = 'full'  # 'full' uses energy+gnorm+feas, 'energy' uses energy only
-	
+		# PGD-only: constant-phase penalty controls
+		self.penalty_target_mode = 'fixed'  # 'fixed' (paper) or 'adaptive'
+		self.penalty_eps = 1e-8            # small stabilizer in denominators
+		
 		# Override with params if provided
 		if params:
 			print("\nOverriding default parameters with:")

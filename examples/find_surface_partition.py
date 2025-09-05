@@ -100,6 +100,11 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 										refine_grad_tol=float(getattr(config, 'refine_grad_tol', 1e-2)),
 										refine_constraint_tol=float(getattr(config, 'refine_constraint_tol', 1e-2)),
 										logger=logger)
+			# Configure PGD constant-phase penalty options
+			if hasattr(optimizer, 'penalty_target_mode'):
+				optimizer.penalty_target_mode = str(getattr(config, 'penalty_target_mode', 'fixed'))
+			if hasattr(optimizer, 'penalty_eps'):
+				optimizer.penalty_eps = float(getattr(config, 'penalty_eps', 1e-8))
 
 		N = len(mesh.v)
 		if level == 0:

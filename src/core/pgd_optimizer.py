@@ -58,13 +58,18 @@ class ProjectedGradientOptimizer:
 		# Prefer geometric total_area from v; fall back to provided
 		self.total_area = float(total_area) if total_area is not None else float(np.sum(v))
 		self.target_area = self.total_area / self.n_partitions
-
+		# Precompute total weight and penalty defaults
+		self.W = float(np.sum(self.v))
+		self.mu_target = 1.0 / self.n_partitions
+		self.penalty_target_mode = 'fixed'  # or 'adaptive'
+		self.penalty_eps = 1e-8
+		
 		# Refinement criteria
 		self.refine_patience = int(refine_patience)
 		self.refine_delta_energy = float(refine_delta_energy)
 		self.refine_grad_tol = float(refine_grad_tol)
 		self.refine_constraint_tol = float(refine_constraint_tol)
-
+		
 		# Logging cache
 		self.log = {
 			'iterations': [],
@@ -91,9 +96,18 @@ class ProjectedGradientOptimizer:
 		if self.lambda_penalty > 0:
 			for i in range(n):
 				u = phi[:, i]
-				mu = float(np.mean(u))
-				var = float(np.var(u))
-				total_energy += self.lambda_penalty * (1.0 - var / (mu * (1 - mu) + 1e-8))
+				# Weighted mean and variance
+				mu = float((self.v @ u) / self.W)
+				center = u - mu
+				var_w = float(((center * self.v) @ center) / self.W)
+				# Target variance (fixed or adaptive)
+				if self.penalty_target_mode == 'adaptive':
+					T = mu * (1.0 - mu)
+				else:
+					mu_t = self.mu_target
+					T = mu_t * (1.0 - mu_t)
+				T_eff = T + self.penalty_eps
+				total_energy += self.lambda_penalty * (1.0 - var_w / T_eff)
 		return total_energy
 
 	def compute_gradient(self, x: np.ndarray) -> np.ndarray:
@@ -111,8 +125,27 @@ class ProjectedGradientOptimizer:
 		if self.lambda_penalty > 0:
 			for i in range(n):
 				u = phi[:, i]
-				mu = float(np.mean(u))
-				G[:, i] += self.lambda_penalty * (-2 * (u - mu) / N) / (mu * (1 - mu) + 1e-8)
+				# Weighted statistics
+				mu = float((self.v @ u) / self.W)
+				center = u - mu
+				var_w = float(((center * self.v) @ center) / self.W)
+				# Target variance (fixed or adaptive)
+				if self.penalty_target_mode == 'adaptive':
+					T = mu * (1.0 - mu)
+				else:
+					mu_t = self.mu_target
+					T = mu_t * (1.0 - mu_t)
+				T_eff = T + self.penalty_eps
+				# Gradient of weighted variance: (2/W) diag(v) (u - mu*1)
+				grad_var = (2.0 / self.W) * (self.v * center)
+				if self.penalty_target_mode == 'adaptive':
+					# Full adaptive gradient: -lambda [ (1/T) grad_var - (Var/T^2) (1-2mu) (v/W) ]
+					term1 = grad_var / T_eff
+					term2 = (var_w / (T_eff * T_eff)) * (1.0 - 2.0 * mu) * (self.v / self.W)
+					G[:, i] += -self.lambda_penalty * (term1 - term2)
+				else:
+					# Fixed target gradient: -lambda * (1/T) * grad_var
+					G[:, i] += -self.lambda_penalty * (grad_var / T_eff)
 		return g
 
 	def constraint_fun(self, x: np.ndarray) -> np.ndarray:
