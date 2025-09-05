@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Generic submission script for UPPMAX (Rackham) to run surface partition optimizations
-# Mirrors the torus submitter but uses the surface-agnostic orchestrator in RingTest.
 # Usage examples:
 #   bash scripts/submit.sh --input parameters/input.yaml
 #   bash scripts/submit.sh --input parameters/input.yaml --surface ring --time 24:00:00 --venv ringtest-3.9
@@ -21,7 +20,7 @@ PROJECT_BASE="/proj/${PROJECT_FOLDER}"
 # -------------------------------
 INPUT_FILE="parameters/input.yaml"
 OUTPUT_DIR="results"
-SOLUTION_DIR="${PROJECT_BASE}/private/OPTIM_SOLUTIONS"
+SOLUTION_DIR="${PROJECT_BASE}/private/LINKED_LST_MANIFOLD/OPTIM_SOLUTIONS"
 TIME_LIMIT="12:00:00"
 VENV_NAME="partition"        # Virtual environment name under $HOME
 SURFACE_ARG=""               # Optional override for surface (falls back to YAML)
