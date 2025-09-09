@@ -13,7 +13,8 @@ from logging_config import get_logger
 
 class ContourAnalyzer:
     """
-    Analyze and visualize contours for ring partition results in R^2.
+    Analyze and visualize contours for partition results on triangulated surfaces
+    in R^2 (planar) or embedded in R^3.
 
     This follows the paper's approach (see manifold_partition.md, eq. (5.1)):
     - Compute indicator functions via winner-takes-all on densities
@@ -53,8 +54,8 @@ class ContourAnalyzer:
             self.vertices = f['vertices'][:]
             self.faces = f['faces'][:]
 
-        if self.vertices.ndim != 2 or self.vertices.shape[1] != 2:
-            raise ValueError(f"Vertices must be (N,2); got {self.vertices.shape}")
+        if self.vertices.ndim != 2 or self.vertices.shape[1] not in (2, 3):
+            raise ValueError(f"Vertices must be (N,2) or (N,3); got {self.vertices.shape}")
         if self.faces.ndim != 2 or self.faces.shape[1] != 3:
             raise ValueError(f"Faces must be (T,3); got {self.faces.shape}")
 
@@ -92,7 +93,7 @@ class ContourAnalyzer:
         """
         Find up to one segment of the level-set within a triangle for a scalar field.
 
-        Returns a list with either 0 or 1 segment; each segment is (2, 2).
+        Returns a list with either 0 or 1 segment; each segment is (2, D) with D in {2,3}.
         """
         points = []
         # Edge (p1, p2)

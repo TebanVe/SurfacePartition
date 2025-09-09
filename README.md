@@ -132,8 +132,9 @@ python examples/find_surface_partition.py --input parameters/input.yaml
 # Specify output directory for solutions
 python examples/find_surface_partition.py --input parameters/input.yaml --solution-dir results/my_solutions
 
-# Use specific surface provider (currently only 'ring' supported)
+# Use specific surface provider ('ring' or 'torus')
 python examples/find_surface_partition.py --input parameters/input.yaml --surface ring
+python examples/find_surface_partition.py --input parameters/input.yaml --surface torus
 ```
 
 ### Optimizer Selection
@@ -174,6 +175,50 @@ python examples/test_optimizer.py
 # Test projection algorithms
 python examples/test_projection.py
 ```
+
+### Torus Surface Support
+
+The framework now supports a torus of revolution (R3):
+- Provider: `TorusMeshProvider` (`src/surfaces/torus.py`)
+- Resolution labels: `nt` (major), `np` (minor)
+- Theoretical area: `4π² R r`
+
+Usage:
+```bash
+# Run optimization on a torus
+python examples/find_surface_partition.py --input parameters/input.yaml --surface torus
+```
+
+YAML parameters (used when `--surface torus`):
+```yaml
+n_theta: 32        # samples along major circle
+n_phi: 24          # samples along tube circle
+R: 1.0             # major radius
+r: 0.3             # minor radius
+n_theta_increment: 0
+n_phi_increment: 0
+```
+
+### Surface Visualization (2D/3D)
+
+Use a single script to visualize partitions on any supported surface:
+
+```bash
+# 2D (Matplotlib) or 3D (PyVista) depending on solution
+python examples/surface_visualization.py --solution <path/to/solution.h5> --level 0.5
+
+# Optional flags
+--use-initial          # visualize x0 instead of x_opt
+--save out.png         # save image instead of showing a window
+--no-fill --no-mesh    # 2D-only styling options
+--show-normals         # 3D-only; overlay triangle normals
+--normal-scale 0.1     # 3D-only; scale of normals
+--color-partition      # 3D-only; light per-face region colors + strong contours
+```
+
+Notes:
+- 3D rendering (e.g., torus) requires `pyvista` (optional dependency). 2D ring plots do not require it.
+- The script automatically infers 2D vs 3D from the solution's vertex dimension.
 
 ## Configuration
 

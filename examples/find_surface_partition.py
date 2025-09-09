@@ -258,6 +258,12 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 			'use_discrete_area_for_constraints': bool(getattr(config, 'use_discrete_area_for_constraints', True)),
 			'n_partitions': int(config.n_partitions),
 			'optimizer_type': 'pyslsqp' if optimizer_name == 'PySLSQP' else 'pgd',
+			# Surface-specific parameters for reconstruction by analyzer
+			'surface_params': (
+				{'r_inner': float(getattr(provider, 'r_inner', 0.5)), 'r_outer': float(getattr(provider, 'r_outer', 1.0))}
+				if surface == 'ring' else
+				{'R': float(getattr(provider, 'R', 1.0)), 'r': float(getattr(provider, 'r', 0.3))}
+			),
 			# PGD-only parameters persisted for analysis/reproducibility
 			'run_log_frequency': int(getattr(config, 'run_log_frequency', getattr(config, 'log_frequency', 50))),
 			'h5_save_stride': int(getattr(config, 'h5_save_stride', 1)),
@@ -310,11 +316,10 @@ def optimize_surface_partition(provider, config, solution_dir=None):
 
 def main():
 	from config import Config
-	from surfaces.ring import RingMeshProvider
 	parser = argparse.ArgumentParser(description='Generic surface partition optimization')
 	parser.add_argument('--input', type=str, help='Path to input YAML')
 	parser.add_argument('--solution-dir', type=str, help='Directory to save solutions')
-	parser.add_argument('--surface', type=str, default='ring', help='Surface type (ring for now)')
+	parser.add_argument('--surface', type=str, default='ring', help='Surface type (ring or torus)')
 	args = parser.parse_args()
 
 	setup_logging(log_level='INFO', log_to_console=True, log_to_file=False)
@@ -328,9 +333,22 @@ def main():
 		config = Config()
 
 	if args.surface == 'ring':
+		from surfaces.ring import RingMeshProvider
 		provider = RingMeshProvider(config.n_radial, config.n_angular, config.r_inner, config.r_outer,
-									 n_radial_increment=getattr(config, 'n_radial_increment', 0),
-									 n_angular_increment=getattr(config, 'n_angular_increment', 0))
+								 n_radial_increment=getattr(config, 'n_radial_increment', 0),
+								 n_angular_increment=getattr(config, 'n_angular_increment', 0))
+	elif args.surface == 'torus':
+		from surfaces.torus import TorusMeshProvider
+		# Fall back to defaults if not present in config
+		n_theta = int(getattr(config, 'n_theta', 32))
+		n_phi = int(getattr(config, 'n_phi', 24))
+		R = float(getattr(config, 'R', 1.0))
+		r = float(getattr(config, 'r', 0.3))
+		n_theta_increment = int(getattr(config, 'n_theta_increment', 0))
+		n_phi_increment = int(getattr(config, 'n_phi_increment', 0))
+		provider = TorusMeshProvider(n_theta, n_phi, R, r,
+									n_theta_increment=n_theta_increment,
+									n_phi_increment=n_phi_increment)
 	else:
 		raise ValueError(f"Unsupported surface type: {args.surface}")
 

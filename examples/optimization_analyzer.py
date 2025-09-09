@@ -20,6 +20,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from logging_config import get_logger
 from surfaces.ring import RingMeshProvider
+from surfaces.torus import TorusMeshProvider
 
 def load_pyslsqp_internal_data(hdf5_file_path: str) -> Optional[Dict]:
 	"""
@@ -610,25 +611,49 @@ def analyze_optimization_run(results_dir: str, output_dir: str = None):
     # Sort by explicit level index
     levels_meta_sorted = sorted(levels_meta, key=lambda x: int(x.get('level', 0)))
     
-    # Load mesh parameters from metadata
-    mesh_params = metadata.get('final_mesh_stats', {})
-    n_radial = mesh_params.get('n_radial', 8)
-    n_angular = mesh_params.get('n_angular', 16)
-    r_inner = mesh_params.get('r_inner', 0.5)
-    r_outer = mesh_params.get('r_outer', 1.0)
-    
-    # Extract constraint evolution data using metadata exclusively
-    surface = metadata.get('input_parameters', {}).get('surface')
+    # Load surface/provider info from metadata
+    input_params = metadata.get('input_parameters', {})
+    surface_name = input_params.get('surface', 'ring')
+    resolution_labels = input_params.get('resolution_labels') or ['v1', 'v2']
+    label1 = resolution_labels[0]
+    label2 = resolution_labels[1] if len(resolution_labels) > 1 else 'v2'
+    surface_params = input_params.get('surface_params', {})
     n_partitions = int(metadata.get('input_parameters', {}).get('n_partitions', metadata.get('n_partitions', 2)))
     results = []
     theoretical_total_area = metadata.get('theoretical_total_area')
-    provider = RingMeshProvider(n_radial, n_angular, r_inner, r_outer)
+    
+    # Instantiate provider per surface
+    if surface_name == 'ring':
+        # Fallbacks if surface_params missing
+        r_inner = float(surface_params.get('r_inner', 0.5))
+        r_outer = float(surface_params.get('r_outer', 1.0))
+        # Try to infer initial resolution from first level meta if present
+        first_level = levels_meta_sorted[0]
+        v1_init = int(first_level.get(label1, 8))
+        v2_init = int(first_level.get(label2, 16))
+        provider = RingMeshProvider(v1_init, v2_init, r_inner, r_outer)
+    elif surface_name == 'torus':
+        R = float(surface_params.get('R', 1.0))
+        r = float(surface_params.get('r', 0.3))
+        first_level = levels_meta_sorted[0]
+        v1_init = int(first_level.get(label1, 16))
+        v2_init = int(first_level.get(label2, 12))
+        provider = TorusMeshProvider(v1_init, v2_init, R, r)
+    else:
+        logger.error(f"Unsupported surface in metadata: {surface_name}")
+        return
+
     if theoretical_total_area is None and hasattr(provider, 'theoretical_total_area'):
-        theoretical_total_area = provider.theoretical_total_area()
+        try:
+            theoretical_total_area = provider.theoretical_total_area()
+        except Exception:
+            theoretical_total_area = None
+    
     for lm in levels_meta_sorted:
-        nr_eff = int(lm.get('nr', lm.get('nt', lm.get('v1', n_radial))))
-        na_eff = int(lm.get('na', lm.get('np', lm.get('v2', n_angular))))
-        provider.set_resolution(nr_eff, na_eff)
+        # Read effective per-level resolution using labels from metadata
+        v1_eff = int(lm.get(label1, lm.get('v1', v1_init)))
+        v2_eff = int(lm.get(label2, lm.get('v2', v2_init)))
+        provider.set_resolution(v1_eff, v2_eff)
         mesh_level = provider.build()
         mesh_level.compute_matrices()
         v_level = mesh_level.v
@@ -674,14 +699,14 @@ def analyze_optimization_run(results_dir: str, output_dir: str = None):
     label1 = title_labels[0]
     label2 = title_labels[1] if len(title_labels) > 1 else 'v2'
     last_level = levels_meta_sorted[-1] if isinstance(levels_meta_sorted, list) and levels_meta_sorted else {}
-    var1_val = int(last_level.get(label1, mesh_params.get('n_radial', 0)))
-    var2_val = int(last_level.get(label2, mesh_params.get('n_angular', 0)))
+    var1_val = int(last_level.get(label1, v1_init))
+    var2_val = int(last_level.get(label2, v2_init))
     optimizer_name = metadata.get('optimizer') or 'PGD'
     lam = metadata.get('input_parameters', {}).get('lambda_penalty')
     seed = metadata.get('input_parameters', {}).get('seed')
     use_analytic_flag = metadata.get('input_parameters', {}).get('use_analytic')
     from src.plot_utils import build_plot_title
-    metrics_title = build_plot_title(optimizer_name, surface, label1, var1_val, label2, var2_val, lam, seed, use_analytic_flag, prefix='Optimization Metrics')
+    metrics_title = build_plot_title(optimizer_name, surface_name, label1, var1_val, label2, var2_val, lam, seed, use_analytic_flag, prefix='Optimization Metrics')
     plot_refinement_optimization_metrics(
         energies, grad_norms, cnorms, steps, level_boundaries,
         save_path=os.path.join(output_dir, 'refinement_optimization_metrics.png'),
@@ -690,13 +715,13 @@ def analyze_optimization_run(results_dir: str, output_dir: str = None):
     )
     
     # Create constraint evolution plot
-    constraint_title = build_plot_title(optimizer_name, surface, label1, var1_val, label2, var2_val, lam, seed, use_analytic_flag, prefix='Constraint Evolution')
+    constraint_title = build_plot_title(optimizer_name, surface_name, label1, var1_val, label2, var2_val, lam, seed, use_analytic_flag, prefix='Constraint Evolution')
     plot_constraint_evolution(
         constraint_data, level_boundaries,
         save_path=os.path.join(output_dir, 'constraint_evolution.png'),
         n_partitions=n_partitions,
-        n_radial_info=mesh_params.get('n_radial'),
-        n_angular_info=mesh_params.get('n_angular'),
+        n_radial_info=var1_val,
+        n_angular_info=var2_val,
         lambda_penalty=metadata.get('input_parameters', {}).get('lambda_penalty'),
         seed=metadata.get('input_parameters', {}).get('seed'),
         use_analytic=metadata.get('input_parameters', {}).get('use_analytic'),
@@ -714,7 +739,7 @@ def main():
     """
     Main function for optimization analysis.
     """
-    parser = argparse.ArgumentParser(description='Analyze ring partition optimization results')
+    parser = argparse.ArgumentParser(description='Analyze surface partition optimization results')
     parser.add_argument('--results-dir', type=str, required=True, 
                        help='Directory containing optimization results')
     parser.add_argument('--output-dir', type=str, 

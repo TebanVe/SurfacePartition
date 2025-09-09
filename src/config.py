@@ -90,6 +90,14 @@ class Config:
 		self.penalty_target_mode = 'fixed'  # 'fixed' (paper) or 'adaptive'
 		self.penalty_eps = 1e-8            # small stabilizer in denominators
 		
+		# Torus parameters (for torus surface)
+		self.n_theta = 32       # Samples along major circle
+		self.n_phi = 24         # Samples along minor (tube) circle
+		self.R = 1.0            # Major radius
+		self.r = 0.3            # Minor radius
+		self.n_theta_increment = 0
+		self.n_phi_increment = 0
+		
 		# Override with params if provided
 		if params:
 			print("\nOverriding default parameters with:")
