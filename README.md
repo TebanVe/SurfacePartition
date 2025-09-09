@@ -95,21 +95,24 @@ RingTest/
 │   │   ├── pgd_optimizer.py     # Projected gradient descent optimizer
 │   │   └── interpolation.py     # Solution interpolation utilities
 │   ├── surfaces/                 # Surface-specific providers
-│   │   └── ring.py              # Ring/annulus surface provider
+│   │   ├── ring.py              # Ring/annulus surface provider
+│   │   └── torus.py             # Torus of revolution (R3) provider
 │   ├── config.py                 # Configuration management
-│   ├── plot_utils.py             # Visualization utilities
+│   ├── plot_utils.py             # 2D visualization utilities (Matplotlib)
+│   ├── plot_utils_3d.py          # 3D visualization utilities (PyVista)
 │   ├── logging_config.py         # Logging system
 │   ├── projection_iterative.py   # Constraint projection algorithms
-│   ├── find_contours.py          # Contour extraction utilities
+│   ├── find_contours.py          # Contour extraction utilities (R2/R3)
 │   └── island_analysis.py        # Partition quality analysis
 ├── examples/                      # Example scripts and analysis tools
 │   ├── find_surface_partition.py # Main optimization orchestrator
-│   ├── optimization_analyzer.py  # Comprehensive result analysis
+│   ├── optimization_analyzer.py  # Surface-agnostic result analysis
+│   ├── surface_visualization.py  # Unified 2D/3D visualization entrypoint
 │   ├── island_analyzer.py        # Island detection and analysis
 │   ├── test_mesh_matrices.py     # Mesh and matrix testing
 │   ├── test_optimizer.py         # Optimizer testing
 │   ├── test_projection.py        # Projection algorithm testing
-│   └── ring_visualization.py     # Ring-specific visualization
+│   └── ring_visualization.py     # Ring-only visualization
 ├── parameters/                    # Configuration files
 │   └── input.yaml                # Default input parameters
 ├── scripts/                       # Utility scripts
@@ -219,6 +222,13 @@ python examples/surface_visualization.py --solution <path/to/solution.h5> --leve
 Notes:
 - 3D rendering (e.g., torus) requires `pyvista` (optional dependency). 2D ring plots do not require it.
 - The script automatically infers 2D vs 3D from the solution's vertex dimension.
+
+Flag descriptions (brief):
+- `--use-initial`: visualize the initial condition `x0` instead of `x_opt` (auto-saved 3D screenshots add `_initial` suffix).
+- `--save <path>`: write the image to file. If omitted, shows an interactive window.
+- `--no-fill` / `--no-mesh` (2D): toggle filled partitions or mesh overlay.
+- `--show-normals` (3D): overlay triangle normals; `--normal-scale` controls arrow length.
+- `--color-partition` (3D): light per-face region colors (approximate) with strong-colored contour lines.
 
 ## Configuration
 
