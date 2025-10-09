@@ -36,5 +36,9 @@ visualizations/
 
 # Specific files to ignore
 gradient_descend_with_projection.py
-manifold_partition.md 
+manifold_partition.md
+examples/generate_optimization_report.py
+examples/test_fem_validation.py
+examples/test_interpolation_methods.py
+src/core/interpolation_improved.py 
 docs/

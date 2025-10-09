@@ -40,6 +40,10 @@ def load_pyslsqp_internal_data(hdf5_file_path: str) -> Optional[Dict]:
 			obj_list: List[float] = []
 			constraints_list: List[np.ndarray] = []
 			ismajor_list: List[bool] = []
+			energy_total_list: List[float] = []
+			energy_grad_list: List[float] = []
+			energy_interface_list: List[float] = []
+			energy_penalty_list: List[float] = []
 			for k in iter_keys:
 				g = f[k]
 				if 'x' in g:
@@ -54,6 +58,15 @@ def load_pyslsqp_internal_data(hdf5_file_path: str) -> Optional[Dict]:
 					ismajor_list.append(bool(g['ismajor'][()]))
 				else:
 					ismajor_list.append(True)
+				# Read energy components if available
+				if 'energy_total' in g:
+					energy_total_list.append(g['energy_total'][()])
+				if 'energy_grad' in g:
+					energy_grad_list.append(g['energy_grad'][()])
+				if 'energy_interface' in g:
+					energy_interface_list.append(g['energy_interface'][()])
+				if 'energy_penalty' in g:
+					energy_penalty_list.append(g['energy_penalty'][()])
 			if x_list:
 				data['x'] = np.array(x_list)
 			if grad_list:
@@ -64,6 +77,14 @@ def load_pyslsqp_internal_data(hdf5_file_path: str) -> Optional[Dict]:
 				data['constraints'] = np.array(constraints_list)
 			if ismajor_list:
 				data['ismajor'] = np.array(ismajor_list)
+			if energy_total_list:
+				data['energy_total'] = np.array(energy_total_list)
+			if energy_grad_list:
+				data['energy_grad'] = np.array(energy_grad_list)
+			if energy_interface_list:
+				data['energy_interface'] = np.array(energy_interface_list)
+			if energy_penalty_list:
+				data['energy_penalty'] = np.array(energy_penalty_list)
 			data['iters'] = np.array(iters, dtype=int)
 			return data
 	except Exception as e:
@@ -223,9 +244,15 @@ def extract_constraint_evolution_from_pyslsqp_data(results: List[Dict], n_partit
 				area_evolution.append(areas.copy())
 				if iters_local is not None:
 					area_iters.append(int(start_global + int(iters_local[i])))
-				# unity violation per vertex (kept for potential homogeneous plotting)
+				# unity violation per vertex
 				unity_violations = np.sum(phi, axis=1) - 1.0
-				unity_evolution.append(unity_violations.copy())
+				# Store as dict with both raw violations and summary statistics
+				unity_evolution.append({
+					'violations': unity_violations.copy(),
+					'max_abs': np.max(np.abs(unity_violations)),
+					'rms': np.sqrt(np.mean(unity_violations**2)),
+					'mean_abs': np.mean(np.abs(unity_violations))
+				})
 			# constraints/feas if present
 			if 'constraints' in data:
 				c_all = data['constraints']
@@ -242,6 +269,56 @@ def extract_constraint_evolution_from_pyslsqp_data(results: List[Dict], n_partit
 		'areas': area_evolution,
 		'unity': unity_evolution,
 		'area_iters': area_iters,
+	}
+
+def extract_energy_components_across_levels(results: List[Dict], logger=None) -> Optional[Dict]:
+	"""
+	Extract energy component evolution across all refinement levels.
+	Returns dict with 'iters', 'total', 'grad', 'interface', 'penalty' arrays,
+	or None if no component data found.
+	"""
+	if logger is None:
+		logger = get_logger(__name__)
+	
+	all_iters: List[int] = []
+	all_total: List[float] = []
+	all_grad: List[float] = []
+	all_interface: List[float] = []
+	all_penalty: List[float] = []
+	
+	for result in results:
+		internal_data_file = result.get('internal_data_file')
+		start_global = int(result.get('start_index_global', 0))
+		if internal_data_file and os.path.exists(internal_data_file):
+			data = load_pyslsqp_internal_data(internal_data_file)
+			if data is None or 'energy_total' not in data:
+				# No energy component data in this file
+				if logger:
+					logger.debug(f"No energy components found in {internal_data_file}")
+				return None
+			
+			# Extract components and compute global iteration indices
+			iters_local = data.get('iters')
+			for i in range(len(data['energy_total'])):
+				all_total.append(float(data['energy_total'][i]))
+				all_grad.append(float(data['energy_grad'][i]))
+				all_interface.append(float(data['energy_interface'][i]))
+				all_penalty.append(float(data['energy_penalty'][i]))
+				if iters_local is not None:
+					all_iters.append(int(start_global + int(iters_local[i])))
+	
+	if not all_total:
+		return None
+	
+	if logger:
+		logger.info(f"Extracted {len(all_total)} energy component snapshots across {len(results)} levels")
+	
+	return {
+		'iters': np.array(all_iters) if all_iters else np.arange(len(all_total)),
+		'total': np.array(all_total),
+		'grad': np.array(all_grad),
+		'interface': np.array(all_interface),
+		'penalty': np.array(all_penalty)
 	}
 
 def compute_unity_last_level(internal_data_file: str, n_partitions: int, major_only: bool = False, logger=None) -> Optional[np.ndarray]:
@@ -412,7 +489,7 @@ def plot_constraint_evolution(constraint_data: Dict, level_boundaries: List[int]
     feas_evolution = constraint_data.get('feas', [])
     area_evolution = constraint_data.get('areas', [])
     unity_evolution = constraint_data.get('unity', [])
-    area_iters = np.array(constraint_data.get('_area_iters', [])) if constraint_data.get('_area_iters') is not None else None
+    area_iters = np.array(constraint_data.get('area_iters', [])) if constraint_data.get('area_iters') is not None else None
     
     # Check if we have data
     if len(area_evolution) == 0:
@@ -426,17 +503,28 @@ def plot_constraint_evolution(constraint_data: Dict, level_boundaries: List[int]
     # Convert to numpy arrays
     area_evolution = np.array(area_evolution)
     
-    # Handle unity_evolution which may have inhomogeneous shapes
-    try:
-        unity_evolution = np.array(unity_evolution)
-        unity_evolution_homogeneous = True
-    except ValueError as e:
-        if "inhomogeneous shape" in str(e):
-            unity_evolution_homogeneous = False
-            if logger:
-                logger.warning("Unity evolution arrays have different shapes. Skipping unity violation plot.")
-        else:
-            raise e
+    # Extract unity violation statistics if available
+    unity_stats = None
+    if len(unity_evolution) > 0 and isinstance(unity_evolution[0], dict):
+        # New format with statistics
+        unity_stats = {
+            'max_abs': np.array([u['max_abs'] for u in unity_evolution]),
+            'rms': np.array([u['rms'] for u in unity_evolution]),
+            'mean_abs': np.array([u['mean_abs'] for u in unity_evolution])
+        }
+        unity_evolution_homogeneous = False  # Use stats instead of per-vertex data
+    else:
+        # Legacy format: try to convert to homogeneous array
+        try:
+            unity_evolution = np.array(unity_evolution)
+            unity_evolution_homogeneous = True
+        except ValueError as e:
+            if "inhomogeneous shape" in str(e):
+                unity_evolution_homogeneous = False
+                if logger:
+                    logger.warning("Unity evolution arrays have different shapes. Skipping unity violation plot.")
+            else:
+                raise e
     
     # Plot constraint norm convergence
     if len(cnorm_evolution) > 0:
@@ -467,9 +555,13 @@ def plot_constraint_evolution(constraint_data: Dict, level_boundaries: List[int]
         axes[0, 1].set_title('Feasibility Convergence')
     
     # Plot area evolution with sparse x
-    if isinstance(area_evolution, list) and len(area_evolution) > 0:
+    if (isinstance(area_evolution, (list, np.ndarray)) and len(area_evolution) > 0):
+        if logger:
+            logger.info(f"Plotting area evolution with {len(area_evolution)} snapshots")
         area_arr = np.array(area_evolution)
         n_partitions_actual = area_arr.shape[1]
+        if logger:
+            logger.info(f"Area array shape: {area_arr.shape}, n_partitions: {n_partitions_actual}")
         
         # Target area: use theoretical total area if provided; else skip line
         if theoretical_total_area is not None:
@@ -479,9 +571,13 @@ def plot_constraint_evolution(constraint_data: Dict, level_boundaries: List[int]
         # Build x-axis
         if isinstance(area_iters, np.ndarray) and area_iters.size == area_arr.shape[0]:
             xs = area_iters
+            if logger:
+                logger.info(f"Using area_iters for x-axis: {xs[:5]}... (first 5)")
         else:
             # Fallback: regular spacing
             xs = np.arange(area_arr.shape[0])
+            if logger:
+                logger.info(f"Using regular spacing for x-axis")
         
         # Plot each partition's area
         for i in range(n_partitions_actual):
@@ -493,30 +589,53 @@ def plot_constraint_evolution(constraint_data: Dict, level_boundaries: List[int]
         axes[1, 0].set_ylabel('Area')
         axes[1, 0].grid(True, alpha=0.3)
         axes[1, 0].legend()
+        if logger:
+            logger.info("Area evolution plot completed successfully")
     else:
+        if logger:
+            logger.warning(f"No area data to plot. area_evolution type: {type(area_evolution)}, len: {len(area_evolution) if isinstance(area_evolution, list) else 'N/A'}")
         axes[1, 0].text(0.5, 0.5, 'No area data available', 
                        ha='center', va='center', transform=axes[1, 0].transAxes)
         axes[1, 0].set_title('Area Evolution')
     
     # Plot partition unity violations
-    unity_last_level_data = unity_last_level
-    if unity_last_level_data is not None and isinstance(unity_last_level_data, np.ndarray):
-        # Plot only last-level unity, aligned to global iteration axis
-        n_vertices = unity_last_level_data.shape[1]
-        if n_vertices > max_vertices_plot:
-            vertex_indices = np.linspace(0, n_vertices-1, max_vertices_plot, dtype=int)
-            sampled_unity = unity_last_level_data[:, vertex_indices]
+    if unity_stats is not None:
+        # Plot unity violation statistics across all refinement levels
+        if isinstance(area_iters, np.ndarray) and area_iters.size == unity_stats['max_abs'].size:
+            xs = area_iters
         else:
-            sampled_unity = unity_last_level_data
-        x0 = unity_last_start or 0
-        xs = np.arange(sampled_unity.shape[0]) + x0
+            xs = np.arange(unity_stats['max_abs'].size)
+        
         axes[1, 1].axhline(y=0, color='k', linestyle='-', alpha=0.5, label='Target (Unity)')
-        for i in range(sampled_unity.shape[1]):
-            axes[1, 1].plot(xs, sampled_unity[:, i], linestyle=':', alpha=0.7)
+        axes[1, 1].plot(xs, unity_stats['max_abs'], 'r-', linewidth=2, alpha=0.8, label='Max |violation|')
+        axes[1, 1].plot(xs, unity_stats['rms'], 'b-', linewidth=2, alpha=0.8, label='RMS violation')
+        axes[1, 1].plot(xs, unity_stats['mean_abs'], 'g-', linewidth=2, alpha=0.8, label='Mean |violation|')
         axes[1, 1].set_xlabel('Iteration')
         axes[1, 1].set_ylabel('Unity Violation')
-        axes[1, 1].set_title('Partition Unity Violations (last level)')
+        axes[1, 1].set_title('Partition Unity Violations (all levels)')
+        axes[1, 1].set_yscale('log')
         axes[1, 1].grid(True, alpha=0.3)
+        axes[1, 1].legend()
+        if logger:
+            logger.info(f"Plotted unity violation statistics with {len(xs)} snapshots")
+    elif unity_last_level_data := unity_last_level:
+        if isinstance(unity_last_level_data, np.ndarray):
+            # Plot only last-level unity, aligned to global iteration axis
+            n_vertices = unity_last_level_data.shape[1]
+            if n_vertices > max_vertices_plot:
+                vertex_indices = np.linspace(0, n_vertices-1, max_vertices_plot, dtype=int)
+                sampled_unity = unity_last_level_data[:, vertex_indices]
+            else:
+                sampled_unity = unity_last_level_data
+            x0 = unity_last_start or 0
+            xs = np.arange(sampled_unity.shape[0]) + x0
+            axes[1, 1].axhline(y=0, color='k', linestyle='-', alpha=0.5, label='Target (Unity)')
+            for i in range(sampled_unity.shape[1]):
+                axes[1, 1].plot(xs, sampled_unity[:, i], linestyle=':', alpha=0.7)
+            axes[1, 1].set_xlabel('Iteration')
+            axes[1, 1].set_ylabel('Unity Violation')
+            axes[1, 1].set_title('Partition Unity Violations (last level)')
+            axes[1, 1].grid(True, alpha=0.3)
     elif unity_evolution_homogeneous and unity_evolution.shape[0] > 0:
         n_vertices = unity_evolution.shape[1]
         
@@ -575,6 +694,66 @@ def plot_constraint_evolution(constraint_data: Dict, level_boundaries: List[int]
     plt.tight_layout(rect=[0, 0, 1, 0.96])
     plt.savefig(save_path)
     plt.close()
+
+def plot_energy_components(component_data: Dict, level_boundaries: List[int],
+                          save_path: str = 'energy_components.png',
+                          title_override: Optional[str] = None,
+                          logger=None):
+    """
+    Plot energy components evolution with total (dashed) and components (solid).
+    
+    Args:
+        component_data: Dictionary with 'iters', 'total', 'grad', 'interface', 'penalty'
+        level_boundaries: List of level boundary indices
+        save_path: Path to save the plot
+        title_override: Optional title override
+        logger: Logger instance
+    """
+    if logger is None:
+        logger = get_logger(__name__)
+    
+    fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+    
+    # Extract data
+    iters = component_data.get('iters', np.arange(len(component_data['total'])))
+    total = component_data['total']
+    grad = component_data['grad']
+    interface = component_data['interface']
+    penalty = component_data['penalty']
+    
+    # Plot total energy as dashed line
+    ax.plot(iters, total, 'k--', linewidth=2.5, label='Total Energy', alpha=0.8)
+    
+    # Plot components as solid lines
+    ax.plot(iters, grad, 'b-', linewidth=2, label='Gradient Term (ε∇)', alpha=0.9)
+    ax.plot(iters, interface, 'r-', linewidth=2, label='Interface Term (1/ε W)', alpha=0.9)
+    
+    # Only plot penalty if non-zero
+    if np.any(penalty > 1e-12):
+        ax.plot(iters, penalty, 'g-', linewidth=2, label='Penalty Term (λ)', alpha=0.9)
+    
+    # Add refinement boundaries
+    for boundary in level_boundaries:
+        ax.axvline(x=boundary, color='gray', linestyle='--', alpha=0.5, linewidth=1.5)
+    
+    # Formatting
+    ax.set_xlabel('Iteration', fontsize=12)
+    ax.set_ylabel('Energy', fontsize=12)
+    ax.set_yscale('log')
+    ax.grid(True, alpha=0.3)
+    ax.legend(loc='best', fontsize=10)
+    
+    if title_override:
+        fig.suptitle(title_override, fontsize=14, fontweight='bold')
+    else:
+        ax.set_title('Energy Components Evolution', fontsize=14)
+    
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    if logger:
+        logger.info(f"Saved energy components plot to: {save_path}")
 
 def analyze_optimization_run(results_dir: str, output_dir: str = None):
     """
@@ -663,6 +842,10 @@ def analyze_optimization_run(results_dir: str, output_dir: str = None):
             results.append({'internal_data_file': internal_data_file, 'v': v_level, 'N_meta': int(lm.get('N', len(v_level))), 'start_index_global': start_global})
      
     constraint_data = extract_constraint_evolution_from_pyslsqp_data(results, n_partitions, logger)
+    
+    # Extract energy components across all levels
+    energy_components = extract_energy_components_across_levels(results, logger)
+    
     # Compute last-level unity violations and iteration offset for plotting
     last_level_meta = levels_meta_sorted[-1]
     last_internal_file = last_level_meta.get('files', {}).get('internal_data')
@@ -732,6 +915,21 @@ def analyze_optimization_run(results_dir: str, output_dir: str = None):
         title_override=constraint_title,
         logger=logger
     )
+    
+    # Create energy components plot if data is available
+    if energy_components is not None:
+        components_title = build_plot_title(optimizer_name, surface_name, label1, var1_val, label2, var2_val, lam, seed, use_analytic_flag, prefix='Energy Components')
+        plot_energy_components(
+            energy_components, level_boundaries,
+            save_path=os.path.join(output_dir, 'energy_components.png'),
+            title_override=components_title,
+            logger=logger
+        )
+        logger.info("Energy components plot saved successfully")
+    else:
+        logger.warning("Energy component data not found in internal_data files. "
+                      "Skipping energy components plot. (This plot is only available "
+                      "for PGD runs with the updated optimizer.)")
     
     logger.info(f"Analysis complete. Plots saved in: {output_dir}")
 

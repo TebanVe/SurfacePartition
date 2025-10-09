@@ -2,7 +2,7 @@ import os
 import datetime
 import time
 import logging
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Dict
 
 import h5py
 import numpy as np
@@ -81,18 +81,35 @@ class ProjectedGradientOptimizer:
 		self.prev_x = None
 		self.curr_x = None
 
-	def compute_energy(self, x: np.ndarray) -> float:
+	def compute_energy(self, x: np.ndarray, return_components: bool = False):
+		"""
+		Compute total energy and optionally return individual components.
+		
+		Args:
+			x: Solution vector
+			return_components: If True, return dict with components; if False, return float
+		
+		Returns:
+			float: Total energy (if return_components=False)
+			dict: {'total', 'grad', 'interface', 'penalty'} (if return_components=True)
+		"""
 		N = len(self.v)
 		n = self.n_partitions
 		phi = x.reshape(N, n)
-		total_energy = 0.0
+		
+		# Accumulate components separately
+		total_grad = 0.0
+		total_interface = 0.0
+		total_penalty = 0.0
+		
 		for i in range(n):
 			u = phi[:, i]
 			grad_term = self.epsilon * float(u.T @ (self.K @ u))
 			interface_vec = u ** 2 * (1 - u) ** 2
-			# Keep consistency with PySLSQP energy structure
 			interface_term = (1 / self.epsilon) * float(interface_vec.T @ (self.M @ interface_vec))
-			total_energy += grad_term + interface_term
+			total_grad += grad_term
+			total_interface += interface_term
+		
 		if self.lambda_penalty > 0:
 			for i in range(n):
 				u = phi[:, i]
@@ -107,8 +124,20 @@ class ProjectedGradientOptimizer:
 					mu_t = self.mu_target
 					T = mu_t * (1.0 - mu_t)
 				T_eff = T + self.penalty_eps
-				total_energy += self.lambda_penalty * (1.0 - var_w / T_eff)
-		return total_energy
+				penalty_term = self.lambda_penalty * (1.0 - var_w / T_eff)
+				total_penalty += penalty_term
+		
+		total_energy = total_grad + total_interface + total_penalty
+		
+		if return_components:
+			return {
+				'total': total_energy,
+				'grad': total_grad,
+				'interface': total_interface,
+				'penalty': total_penalty
+			}
+		else:
+			return total_energy
 
 	def compute_gradient(self, x: np.ndarray) -> np.ndarray:
 		N = len(self.v)
@@ -157,7 +186,7 @@ class ProjectedGradientOptimizer:
 		area_constraints = area_sums[:-1] - self.target_area
 		return np.concatenate([row_sums, area_constraints])
 
-	def _save_iteration_h5(self, h5, k: int, x: np.ndarray, g: np.ndarray, f: float, cvec: np.ndarray, save_vars: List[str]):
+	def _save_iteration_h5(self, h5, k: int, x: np.ndarray, g: np.ndarray, f: float, cvec: np.ndarray, save_vars: List[str], energy_components: Optional[Dict[str, float]] = None):
 		grp = h5.create_group(f'iter_{k}')
 		if 'x' in save_vars:
 			grp.create_dataset('x', data=x)
@@ -168,6 +197,12 @@ class ProjectedGradientOptimizer:
 		if 'constraints' in save_vars:
 			grp.create_dataset('constraints', data=cvec)
 		grp.create_dataset('ismajor', data=True)
+		# Save energy components if provided
+		if energy_components is not None:
+			grp.create_dataset('energy_total', data=energy_components['total'])
+			grp.create_dataset('energy_grad', data=energy_components['grad'])
+			grp.create_dataset('energy_interface', data=energy_components['interface'])
+			grp.create_dataset('energy_penalty', data=energy_components['penalty'])
 
 	def _append_summary_line(self, fh, k: int, f: float, gnorm: float, cnorm: float, feas: float, step: float):
 		# Columns (9 tokens): MAJOR-idx, NFEV, NGEV, OBJFUN, GNORM, CNORM, FEAS, OPT, STEP (OPT dummy 0)
@@ -249,6 +284,14 @@ class ProjectedGradientOptimizer:
 
 		# Open files
 		with open(summary_filename, 'w') as summary_fh, h5py.File(internal_data_filename, 'w') as h5f:
+			# Add HDF5 metadata for energy components
+			h5f.attrs['energy_schema_version'] = 1
+			h5f.attrs['optimizer'] = 'pgd'
+			h5f.attrs['epsilon'] = self.epsilon
+			h5f.attrs['lambda_penalty'] = self.lambda_penalty
+			h5f.attrs['penalty_target_mode'] = self.penalty_target_mode
+			h5f.attrs['n_partitions'] = self.n_partitions
+			
 			# Optional header line (analyzer ignores lines starting with 'MAJOR')
 			summary_fh.write("MAJOR NFEV NGEV OBJFUN GNORM CNORM FEAS OPT STEP\n")
 
@@ -287,7 +330,9 @@ class ProjectedGradientOptimizer:
 				# Save iteration (post-accept values) according to stride/vars
 				should_save_iter = (k % stride == 0) or (save_first_last and (k == 0 or k == maxiter - 1))
 				if should_save_iter:
-					self._save_iteration_h5(h5f, k, x, g_post, E, cvec_post, save_vars_h5)
+					# Compute energy components for saving
+					energy_components = self.compute_energy(x, return_components=True)
+					self._save_iteration_h5(h5f, k, x, g_post, E, cvec_post, save_vars_h5, energy_components=energy_components)
 				self._append_summary_line(summary_fh, k, E, gnorm_post, cnorm_post, feas_post, step)
 				summary_fh.flush()
 				h5f.flush()
