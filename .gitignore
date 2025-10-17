@@ -42,3 +42,4 @@ examples/test_fem_validation.py
 examples/test_interpolation_methods.py
 src/core/interpolation_improved.py 
 docs/
+auxiliary/
