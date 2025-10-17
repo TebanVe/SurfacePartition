@@ -10,6 +10,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from find_contours import ContourAnalyzer
 from plot_utils import plot_partitions_with_contours, plot_contours_on_ring, build_plot_title
+from core.contour_partition import PartitionContour
 
 
 def main():
@@ -18,6 +19,8 @@ def main():
 	parser.add_argument('--use-initial', action='store_true', help='Use x0 instead of x_opt')
 	parser.add_argument('--level', type=float, default=0.5, help='Level-set threshold for contours (default: 0.5)')
 	parser.add_argument('--save', type=str, help='Path to save image (e.g., results/partition.png)')
+	parser.add_argument('--refined', action='store_true', help='Load and visualize refined contours if available')
+	parser.add_argument('--comparison', action='store_true', help='Show side-by-side comparison of raw vs refined contours')
 	# 2D options
 	parser.add_argument('--no-fill', action='store_true', help='Disable filled partition rendering (2D only)')
 	parser.add_argument('--no-mesh', action='store_true', help='Disable mesh overlay when contours only (2D only)')
@@ -92,7 +95,33 @@ def main():
 	var2_val = int(var2_val) if var2_val is not None else 0
 	title_str = build_plot_title(optimizer, surface, label1, var1_val, label2, var2_val, lam, seed, None, prefix='Partition')
 
-	contours = analyzer.extract_contours(level=args.level)
+	# Extract raw contours from indicator functions
+	raw_contours = analyzer.extract_contours(level=args.level)
+	
+	# Try to load refined contours if requested
+	refined_contours = None
+	if args.refined or args.comparison:
+		refined_path = args.solution.replace('.h5', '_refined_contours.h5')
+		if os.path.exists(refined_path):
+			try:
+				refined_contours = PartitionContour.load_refined_contours(refined_path)
+				print(f"Loaded refined contours from: {refined_path}")
+			except Exception as e:
+				print(f"Warning: Failed to load refined contours: {e}")
+				print(f"         Falling back to raw contours")
+		else:
+			print(f"Warning: Refined contours not found at {refined_path}")
+			print(f"         Run perimeter refinement first: python examples/refine_perimeter.py --solution {args.solution}")
+	
+	# Choose which contours to visualize
+	if refined_contours is not None and not args.comparison:
+		contours = refined_contours
+		title_str += " (Refined)"
+	else:
+		contours = raw_contours
+		if not args.comparison:
+			title_str += " (Raw)"
+	
 	verts = analyzer.vertices
 	faces = analyzer.faces
 
