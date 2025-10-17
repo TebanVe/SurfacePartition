@@ -20,6 +20,14 @@ Where $S$ is any triangulated surface and $∇_τ$ denotes the tangential gradie
 
 ## Key Features
 
+### 🎯 **Perimeter Refinement** (NEW)
+- **Section 5 Implementation**: Direct perimeter minimization on extracted contours
+- **Constrained Optimization**: Equal-area constraints with analytical gradients
+- **Steiner Trees**: Optimal handling of triple points (3 regions meet)
+- **Topology Management**: Variable points on mesh edges with automatic detection
+- **Accurate Perimeter Values**: Match paper benchmarks (Tables 1 & 2)
+- See [docs/PERIMETER_REFINEMENT.md](docs/PERIMETER_REFINEMENT.md) for details
+
 ### 🚀 **Surface-Agnostic Design**
 - **TriMesh**: Universal triangle mesh class supporting both 2D and 3D surfaces
 - **Surface Providers**: Modular system for different surface types (ring, sphere, torus, etc.)
@@ -139,6 +147,28 @@ python examples/find_surface_partition.py --input parameters/input.yaml --soluti
 python examples/find_surface_partition.py --input parameters/input.yaml --surface ring
 python examples/find_surface_partition.py --input parameters/input.yaml --surface torus
 ```
+
+### Perimeter Refinement (NEW)
+
+After obtaining a relaxed solution, refine the contours to get accurate perimeter values:
+
+```bash
+# Step 1: Run Γ-convergence optimization (Section 3)
+python examples/find_surface_partition.py --input parameters/input.yaml
+
+# Step 2: Refine contours (Section 5)
+python examples/refine_perimeter.py \
+    --solution results/run_xyz/solution_level0.h5 \
+    --max-iterations 10 \
+    --tolerance 1e-7
+
+# Step 3: Visualize refined contours
+python examples/surface_visualization.py \
+    --solution results/run_xyz/solution_level0.h5 \
+    --refined
+```
+
+For complete documentation, see [docs/PERIMETER_REFINEMENT.md](docs/PERIMETER_REFINEMENT.md)
 
 ### Optimizer Selection
 
