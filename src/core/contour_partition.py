@@ -35,6 +35,15 @@ except ImportError:
     from logging_config import get_logger
     from core.tri_mesh import TriMesh
 
+# Import BoundaryTriangleInfo for type hints (optional parameter)
+try:
+    from ..find_contours import BoundaryTriangleInfo
+except ImportError:
+    try:
+        from find_contours import BoundaryTriangleInfo
+    except ImportError:
+        BoundaryTriangleInfo = None  # Fallback if not available
+
 
 @dataclass
 class VariablePoint:
@@ -122,13 +131,17 @@ class PartitionContour:
         triple_points: List of detected triple points (computed on demand)
     """
     
-    def __init__(self, mesh: TriMesh, indicator_functions: np.ndarray):
+    def __init__(self, mesh: TriMesh, indicator_functions: np.ndarray, 
+                 boundary_topology: Optional[Dict] = None):
         """
         Initialize partition contours from indicator functions φ_i.
         
         Args:
             mesh: TriMesh object
             indicator_functions: (N, n_cells) binary array from winner-takes-all
+            boundary_topology: Optional pre-computed boundary topology from ContourAnalyzer.
+                             If provided, avoids redundant triangle scanning.
+                             Dict[region_idx] -> List[BoundaryTriangleInfo]
         """
         self.mesh = mesh
         self.logger = get_logger(__name__)
@@ -141,8 +154,13 @@ class PartitionContour:
         self.edge_to_varpoint: Dict[Tuple[int, int], int] = {}
         self.triple_points: Optional[List] = None  # Computed on demand
         
-        # Build the contour representation
-        self._initialize_from_indicators()
+        # Choose initialization method based on available data
+        if boundary_topology is not None:
+            self.logger.info("Initializing from pre-computed boundary topology (efficient path)")
+            self._initialize_from_boundary_topology(boundary_topology)
+        else:
+            self.logger.info("Initializing from indicator functions (scanning all triangles)")
+            self._initialize_from_indicators()
         
         self.logger.info(f"Initialized PartitionContour: {len(self.variable_points)} variable points, "
                         f"{self.n_cells} partition cells")
@@ -211,6 +229,89 @@ class PartitionContour:
         num_two_cell = sum(1 for ts in self.triangle_segments if ts.num_cells() == 2)
         num_triple = sum(1 for ts in self.triangle_segments if ts.is_triple_point())
         self.logger.info(f"Created {len(self.triangle_segments)} triangle segments: "
+                        f"{num_two_cell} two-cell, {num_triple} triple-point")
+    
+    def _initialize_from_boundary_topology(self, boundary_topology: Dict):
+        """
+        Initialize from pre-computed boundary topology (efficient path).
+        
+        This method avoids redundant triangle scanning by reusing topology information
+        already computed by ContourAnalyzer.extract_contours_with_topology().
+        
+        Two-pass structure:
+        - Pass 1: Create unique variable points on boundary edges
+        - Pass 2: Create triangle segments linking triangles to their variable points
+        
+        Why two passes:
+        - Each edge can be shared by multiple triangles (typically 2)
+        - We need ONE variable point per unique edge (for optimization)
+        - We need triangle_segments[] for segment extraction and area calculation
+        
+        Args:
+            boundary_topology: Dict[region_idx] -> List[BoundaryTriangleInfo]
+        """
+        # PASS 1: Create unique variable points on all boundary edges
+        # Scan all regions to find all unique edges and which cells they separate
+        all_edges_info = {}  # edge -> set of cells on this edge
+        
+        for region_idx, tri_infos in boundary_topology.items():
+            for tri_info in tri_infos:
+                # For each crossed edge in this triangle
+                for edge in tri_info.crossed_edges:
+                    normalized_edge = tuple(sorted(edge))
+                    
+                    # Determine which cells this edge separates
+                    # by examining the vertex labels at the edge endpoints
+                    v_start_idx = tri_info.vertices.index(edge[0])
+                    v_end_idx = tri_info.vertices.index(edge[1])
+                    label_start = tri_info.vertex_labels[v_start_idx]
+                    label_end = tri_info.vertex_labels[v_end_idx]
+                    
+                    if normalized_edge not in all_edges_info:
+                        all_edges_info[normalized_edge] = set()
+                    all_edges_info[normalized_edge].update([label_start, label_end])
+        
+        # Create variable points for all unique edges
+        for normalized_edge, cells in all_edges_info.items():
+            var_point = VariablePoint(
+                edge=normalized_edge,
+                lambda_param=0.5,  # Initial position at midpoint
+                global_idx=len(self.variable_points),
+                belongs_to_cells=cells
+            )
+            self.variable_points.append(var_point)
+            self.edge_to_varpoint[normalized_edge] = var_point.global_idx
+        
+        self.logger.info(f"Pass 1 complete: Created {len(self.variable_points)} unique variable points")
+        
+        # PASS 2: Create triangle segments
+        # This maps each triangle to its variable points
+        # Essential for: segment extraction, area calculation, triple point detection
+        for region_idx, tri_infos in boundary_topology.items():
+            for tri_info in tri_infos:
+                # Find variable point indices for this triangle's crossed edges
+                var_point_indices = []
+                boundary_edges_normalized = []
+                
+                for edge in tri_info.crossed_edges:
+                    normalized_edge = tuple(sorted(edge))
+                    var_point_indices.append(self.edge_to_varpoint[normalized_edge])
+                    boundary_edges_normalized.append(normalized_edge)
+                
+                # Create triangle segment
+                tri_seg = TriangleSegment(
+                    triangle_idx=tri_info.triangle_idx,
+                    vertex_indices=tri_info.vertices,
+                    vertex_labels=tri_info.vertex_labels,
+                    boundary_edges=boundary_edges_normalized,
+                    var_point_indices=var_point_indices
+                )
+                self.triangle_segments.append(tri_seg)
+        
+        # Log statistics
+        num_two_cell = sum(1 for ts in self.triangle_segments if ts.num_cells() == 2)
+        num_triple = sum(1 for ts in self.triangle_segments if ts.is_triple_point())
+        self.logger.info(f"Pass 2 complete: Created {len(self.triangle_segments)} triangle segments: "
                         f"{num_two_cell} two-cell, {num_triple} triple-point")
     
     def get_variable_vector(self) -> np.ndarray:

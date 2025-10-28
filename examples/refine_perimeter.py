@@ -103,6 +103,12 @@ def main():
     # Compute indicator functions
     indicators = analyzer.compute_indicator_functions()
     
+    # NEW: Extract contours with topology information
+    # This avoids redundant triangle scanning in PartitionContour initialization
+    logger.info("Extracting contours with boundary topology information...")
+    raw_contours, boundary_topology = analyzer.extract_contours_with_topology()
+    logger.info(f"Extracted topology from {sum(len(v) for v in boundary_topology.values())} boundary triangles")
+    
     # -------------------------------------------------------------------------
     # Step 2: Build mesh and partition contour data structures
     # -------------------------------------------------------------------------
@@ -112,11 +118,15 @@ def main():
     mesh = TriMesh(analyzer.vertices, analyzer.faces)
     total_area = float(mesh.M.sum())
     target_area = total_area / n_partitions
-    
+
+    # In case that the theoretical area of the manifold will be considered, it needs to be introduced here
+    # total_area = provider.theoretical_total_area()
+
     logger.info(f"Total mesh area: {total_area:.6f}")
     logger.info(f"Target area per cell: {target_area:.6f}")
     
-    partition = PartitionContour(mesh, indicators)
+    # NEW: Pass boundary_topology to avoid redundant triangle scanning
+    partition = PartitionContour(mesh, indicators, boundary_topology=boundary_topology)
     
     # -------------------------------------------------------------------------
     # Step 3: Iterative optimization with topology switches

@@ -3,12 +3,35 @@ import h5py
 import numpy as np
 from typing import Dict, List, Tuple, Optional
 from pathlib import Path
+from dataclasses import dataclass
 
 # Add src to path if needed
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 
 from logging_config import get_logger
+
+
+@dataclass
+class BoundaryTriangleInfo:
+    """
+    Container for boundary triangle topology information.
+    
+    Stores information about a triangle that crosses partition boundaries,
+    including which edges are crossed and which cells meet at this triangle.
+    
+    Attributes:
+        triangle_idx: Index of the triangle in the mesh
+        vertices: Tuple of 3 vertex indices (v1, v2, v3)
+        vertex_labels: Tuple of 3 cell labels for the vertices
+        crossed_edges: List of edges that cross cell boundaries
+        segments: List of 3D segment arrays extracted from this triangle
+    """
+    triangle_idx: int
+    vertices: Tuple[int, int, int]
+    vertex_labels: Tuple[int, int, int]
+    crossed_edges: List[Tuple[int, int]]
+    segments: List[np.ndarray]
 
 
 class ContourAnalyzer:
@@ -113,42 +136,89 @@ class ContourAnalyzer:
             return [np.vstack(points)]  # shape (2, 2)
         return []
 
-    def extract_contours(self, level: float = 0.5) -> Dict[int, List[np.ndarray]]:
+    def extract_contours_with_topology(self, level: float = 0.5) -> Tuple[Dict[int, List[np.ndarray]], Dict[int, List[BoundaryTriangleInfo]]]:
         """
-        Extract contour segments per region using indicator functions at a given level.
+        Extract contour segments AND boundary topology information per region.
+        
+        This method performs the same contour extraction as extract_contours(),
+        but also collects topology information about which triangles cross boundaries
+        and which edges are involved. This information can be reused by PartitionContour
+        to avoid redundant triangle scanning.
 
         Args:
             level: level-set threshold (default 0.5)
+            
         Returns:
-            Dict region_index -> list of segments (each segment shape (2, 2))
+            contours: Dict[region_idx] -> List[segment arrays (2, D)]
+            boundary_topology: Dict[region_idx] -> List[BoundaryTriangleInfo]
         """
         if self.densities is None:
-            raise ValueError("Call load_results() before extract_contours()")
+            raise ValueError("Call load_results() before extract_contours_with_topology()")
 
         self.level = level
         chi = self.compute_indicator_functions()
+        vertex_labels = np.argmax(chi, axis=1)  # Global vertex labels
         n_regions = chi.shape[1]
 
         contours: Dict[int, List[np.ndarray]] = {i: [] for i in range(n_regions)}
+        boundary_topology: Dict[int, List[BoundaryTriangleInfo]] = {i: [] for i in range(n_regions)}
 
         for region_idx in range(n_regions):
             chi_region = chi[:, region_idx]
-            segs: List[np.ndarray] = []
 
-            for face in self.faces:
+            for tri_idx, face in enumerate(self.faces):
                 v1, v2, v3 = map(int, face)
                 d1, d2, d3 = chi_region[v1], chi_region[v2], chi_region[v3]
+                label1, label2, label3 = vertex_labels[v1], vertex_labels[v2], vertex_labels[v3]
 
                 # Only if triangle is cut by the level set
                 if (d1 > level) != (d2 > level) or (d2 > level) != (d3 > level) or (d3 > level) != (d1 > level):
                     p1 = self.vertices[v1]
                     p2 = self.vertices[v2]
                     p3 = self.vertices[v3]
-                    segs.extend(self._find_triangle_level_segments(p1, p2, p3, d1, d2, d3, level))
+                    
+                    # Extract segment coordinates (existing logic)
+                    segments = self._find_triangle_level_segments(p1, p2, p3, d1, d2, d3, level)
+                    contours[region_idx].extend(segments)
+                    
+                    # NEW: Identify which edges are crossed
+                    crossed_edges = []
+                    if (d1 > level) != (d2 > level):
+                        crossed_edges.append((v1, v2))
+                    if (d2 > level) != (d3 > level):
+                        crossed_edges.append((v2, v3))
+                    if (d3 > level) != (d1 > level):
+                        crossed_edges.append((v3, v1))
+                    
+                    # Store topology information
+                    tri_info = BoundaryTriangleInfo(
+                        triangle_idx=tri_idx,
+                        vertices=(v1, v2, v3),
+                        vertex_labels=(label1, label2, label3),
+                        crossed_edges=crossed_edges,
+                        segments=segments
+                    )
+                    boundary_topology[region_idx].append(tri_info)
 
-            contours[region_idx] = segs
-            self.logger.info(f"Region {region_idx}: extracted {len(segs)} contour segments at level {level}")
+            self.logger.info(f"Region {region_idx}: extracted {len(contours[region_idx])} contour segments "
+                           f"from {len(boundary_topology[region_idx])} boundary triangles at level {level}")
 
+        return contours, boundary_topology
+
+    def extract_contours(self, level: float = 0.5) -> Dict[int, List[np.ndarray]]:
+        """
+        Extract contour segments per region using indicator functions at a given level.
+        
+        This method maintains backward compatibility by calling extract_contours_with_topology()
+        and returning only the contours (not the topology information).
+
+        Args:
+            level: level-set threshold (default 0.5)
+            
+        Returns:
+            Dict region_index -> list of segments (each segment shape (2, D))
+        """
+        contours, _ = self.extract_contours_with_topology(level)
         return contours
 
     def label_triangles_from_indicator(self) -> np.ndarray:
