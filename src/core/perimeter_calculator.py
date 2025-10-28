@@ -4,9 +4,14 @@ Perimeter computation and gradient calculation for partition cells.
 This module implements the perimeter computation logic from Section 5 of the paper:
 "Computation of the perimeters of the cells". 
 
+TERMINOLOGY (following paper Section 5):
+- "cell": Partition region (what we optimize for equal areas)
+- "triangle": Mesh triangle element (computational discretization)
+- "edge": Mesh triangle edge (computational discretization)
+
 For a segment between two variable points:
-  x_i = λ_i * v1 + (1-λ_i) * v2  (on edge (v1,v2))
-  x_j = λ_j * v3 + (1-λ_j) * v4  (on edge (v3,v4))
+  x_i = λ_i * v1 + (1-λ_i) * v2  (on mesh triangle edge (v1,v2))
+  x_j = λ_j * v3 + (1-λ_j) * v4  (on mesh triangle edge (v3,v4))
 
 Length: ℓ = ||x_i - x_j||
 
@@ -21,22 +26,22 @@ from typing import Tuple
 try:
     from ..logging_config import get_logger
     from .tri_mesh import TriMesh
-    from .contour_partition import PartitionContour, CellContour
+    from .contour_partition import PartitionContour
 except ImportError:
     import sys
     import os
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
     from logging_config import get_logger
     from core.tri_mesh import TriMesh
-    from core.contour_partition import PartitionContour, CellContour
+    from core.contour_partition import PartitionContour
 
 
 class PerimeterCalculator:
     """
-    Computes cell perimeters and gradients for optimization.
+    Computes partition cell perimeters and gradients for optimization.
     
-    The perimeter of a cell is the sum of lengths of all segments forming
-    its contour. Each segment connects two variable points on mesh edges.
+    The perimeter of a partition cell is the sum of lengths of all segments forming
+    its contour. Each segment connects two variable points on mesh triangle edges.
     
     Attributes:
         mesh: The underlying TriMesh (for vertex coordinates)
@@ -61,6 +66,8 @@ class PerimeterCalculator:
         """
         Compute total perimeter of all cells.
         
+        Phase 2: Refactored to use cell indices instead of deprecated CellContour objects.
+        
         Args:
             lambda_vec: Current variable point parameters
             
@@ -70,17 +77,20 @@ class PerimeterCalculator:
         self.partition.set_variable_vector(lambda_vec)
         total = 0.0
         
-        for cell in self.partition.cells:
-            total += self.compute_cell_perimeter(cell, lambda_vec)
+        for cell_idx in range(self.partition.n_cells):
+            total += self.compute_cell_perimeter(cell_idx, lambda_vec)
         
         return total
     
-    def compute_cell_perimeter(self, cell: CellContour, lambda_vec: np.ndarray) -> float:
+    def compute_cell_perimeter(self, cell_idx: int, lambda_vec: np.ndarray) -> float:
         """
         Compute perimeter of one cell.
         
+        Phase 2: Refactored to use triangle-based segment extraction instead of deprecated
+        CellContour.get_segments().
+        
         Args:
-            cell: CellContour object
+            cell_idx: Index of the cell
             lambda_vec: Current variable point parameters
             
         Returns:
@@ -89,8 +99,8 @@ class PerimeterCalculator:
         self.partition.set_variable_vector(lambda_vec)
         perimeter = 0.0
         
-        # Get all segments for this cell
-        segments = cell.get_segments()
+        # Get all segments for this cell using triangle-based extraction
+        segments = self.partition.get_cell_segments_from_triangles(cell_idx)
         
         for var_idx_i, var_idx_j in segments:
             length = self.compute_segment_length(var_idx_i, var_idx_j)
@@ -169,13 +179,16 @@ class PerimeterCalculator:
         
         return grad_i, grad_j
     
-    def compute_perimeter_gradient(self, cell: CellContour, 
+    def compute_perimeter_gradient(self, cell_idx: int, 
                                    lambda_vec: np.ndarray) -> np.ndarray:
         """
         Compute gradient of cell perimeter w.r.t. all λ parameters.
         
+        Phase 2: Refactored to use triangle-based segment extraction instead of deprecated
+        CellContour.get_segments().
+        
         Args:
-            cell: CellContour object
+            cell_idx: Index of the cell
             lambda_vec: Current variable point parameters
             
         Returns:
@@ -184,8 +197,8 @@ class PerimeterCalculator:
         self.partition.set_variable_vector(lambda_vec)
         gradient = np.zeros(len(lambda_vec))
         
-        # Get all segments for this cell
-        segments = cell.get_segments()
+        # Get all segments for this cell using triangle-based extraction
+        segments = self.partition.get_cell_segments_from_triangles(cell_idx)
         
         for var_idx_i, var_idx_j in segments:
             grad_i, grad_j = self.compute_segment_gradient(var_idx_i, var_idx_j)
@@ -200,6 +213,8 @@ class PerimeterCalculator:
         
         This is the objective function gradient for perimeter minimization.
         
+        Phase 2: Refactored to use cell indices instead of deprecated CellContour objects.
+        
         Args:
             lambda_vec: Current variable point parameters
             
@@ -209,8 +224,8 @@ class PerimeterCalculator:
         self.partition.set_variable_vector(lambda_vec)
         gradient = np.zeros(len(lambda_vec))
         
-        for cell in self.partition.cells:
-            gradient += self.compute_perimeter_gradient(cell, lambda_vec)
+        for cell_idx in range(self.partition.n_cells):
+            gradient += self.compute_perimeter_gradient(cell_idx, lambda_vec)
         
         return gradient
     

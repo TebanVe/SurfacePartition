@@ -3,11 +3,16 @@ Area computation and gradient calculation for partition cells on triangulated su
 
 This module implements the area computation logic from Section 5 of the paper:
 "Computation of the areas of the cells". It handles:
-- Full triangles completely inside a cell
-- Partial triangles cut by contour lines (depends on λ parameters)
+- Full mesh triangles completely inside a partition cell
+- Partial mesh triangles cut by contour lines (depends on λ parameters)
 - Analytical gradients ∂Area/∂λ for optimization
 
-For each triangle in the mesh, we determine its contribution to each cell's area
+TERMINOLOGY (following paper Section 5):
+- "cell": Partition region (what we optimize for equal areas)
+- "triangle": Mesh triangle element (computational discretization)
+- "edge": Mesh triangle edge (computational discretization)
+
+For each mesh triangle, we determine its contribution to each partition cell's area
 based on the indicator functions φ_i and the current variable point positions.
 """
 
@@ -29,12 +34,12 @@ except ImportError:
 
 class AreaCalculator:
     """
-    Computes cell areas and gradients for perimeter optimization.
+    Computes partition cell areas and gradients for perimeter optimization.
     
-    For each cell, the area is sum of:
-    1. Full triangles where all 3 vertices belong to the cell
-    2. Partial triangles where 2 vertices belong (trapezoid/triangle portion)
-    3. Partial triangles where 1 vertex belongs (small triangle portion)
+    For each partition cell, the area is sum of:
+    1. Full mesh triangles where all 3 vertices belong to the cell
+    2. Partial mesh triangles where 2 vertices belong (trapezoid/triangle portion)
+    3. Partial mesh triangles where 1 vertex belongs (small triangle portion)
     
     The partial triangle areas depend on λ parameters of variable points,
     and we provide analytical gradients for optimization.
@@ -43,7 +48,7 @@ class AreaCalculator:
         mesh: The underlying TriMesh
         partition: PartitionContour with variable points
         vertex_labels: (N,) array mapping vertices to cell indices
-        triangle_areas: (T,) array of triangle areas (cached)
+        triangle_areas: (T,) array of mesh triangle areas (cached)
     """
     
     def __init__(self, mesh: TriMesh, partition: PartitionContour):
@@ -99,7 +104,7 @@ class AreaCalculator:
         self.partition.set_variable_vector(lambda_vec)
         total_area = 0.0
         
-        # Iterate over all triangles
+        # Iterate over all mesh triangles
         for tri_idx in range(self.mesh.faces.shape[0]):
             area_contrib, _ = self._triangle_contribution(tri_idx, cell_idx, lambda_vec)
             total_area += area_contrib
@@ -120,7 +125,7 @@ class AreaCalculator:
         self.partition.set_variable_vector(lambda_vec)
         gradient = np.zeros(len(lambda_vec))
         
-        # Accumulate gradients from all triangles
+        # Accumulate gradients from all mesh triangles
         for tri_idx in range(self.mesh.faces.shape[0]):
             _, grad_contrib = self._triangle_contribution(tri_idx, cell_idx, lambda_vec)
             gradient += grad_contrib
@@ -130,7 +135,7 @@ class AreaCalculator:
     def _triangle_contribution(self, tri_idx: int, cell_idx: int, 
                                lambda_vec: np.ndarray) -> Tuple[float, np.ndarray]:
         """
-        Compute area contribution and gradient from one triangle to one cell.
+        Compute area contribution and gradient from one mesh triangle to one partition cell.
         
         Returns:
             (area_contribution, gradient_contribution)
@@ -140,17 +145,17 @@ class AreaCalculator:
         v1, v2, v3 = int(face[0]), int(face[1]), int(face[2])
         labels = [self.vertex_labels[v1], self.vertex_labels[v2], self.vertex_labels[v3]]
         
-        # Count how many vertices belong to this cell
+        # Count how many vertices belong to this partition cell
         n_inside = sum(1 for lab in labels if lab == cell_idx)
         
         gradient = np.zeros(len(lambda_vec))
         
         if n_inside == 3:
-            # Case 1: Triangle fully inside cell
+            # Case 1: Mesh triangle fully inside partition cell
             return self.triangle_areas[tri_idx], gradient
         
         elif n_inside == 0:
-            # Case 4: Triangle fully outside cell
+            # Case 4: Mesh triangle fully outside partition cell
             return 0.0, gradient
         
         elif n_inside == 2:
@@ -232,18 +237,24 @@ class AreaCalculator:
         
         # Finite difference for affected variable points
         eps = 1e-7
-        for vp_idx in [vp_idx1, vp_idx2]:
-            lambda_perturbed = self.partition.variable_points[vp_idx].lambda_param + eps
-            old_lambda = self.partition.variable_points[vp_idx].lambda_param
-            self.partition.variable_points[vp_idx].lambda_param = lambda_perturbed
-            
-            # Recompute area with perturbation
-            area_perturbed, _ = self._partial_area_two_inside(tri_idx, cell_idx, v1, v2, v3, labels)
-            
-            gradient[vp_idx] = (area_perturbed - area) / eps
-            
-            # Restore original value
-            self.partition.variable_points[vp_idx].lambda_param = old_lambda
+        
+        # Perturb first variable point
+        lambda1_perturbed = lambda1 + eps
+        if edge1[0] == v_out:
+            p_cut1_perturbed = lambda1_perturbed * p_out + (1 - lambda1_perturbed) * p_in1
+        else:
+            p_cut1_perturbed = (1 - lambda1_perturbed) * p_out + lambda1_perturbed * p_in1
+        area_perturbed1 = self._quadrilateral_area(p_in1, p_cut1_perturbed, p_cut2, p_in2)
+        gradient[vp_idx1] = (area_perturbed1 - area) / eps
+        
+        # Perturb second variable point
+        lambda2_perturbed = lambda2 + eps
+        if edge2[0] == v_out:
+            p_cut2_perturbed = lambda2_perturbed * p_out + (1 - lambda2_perturbed) * p_in2
+        else:
+            p_cut2_perturbed = (1 - lambda2_perturbed) * p_out + lambda2_perturbed * p_in2
+        area_perturbed2 = self._quadrilateral_area(p_in1, p_cut1, p_cut2_perturbed, p_in2)
+        gradient[vp_idx2] = (area_perturbed2 - area) / eps
         
         return area, gradient
     
@@ -311,16 +322,24 @@ class AreaCalculator:
         gradient = np.zeros(len(self.partition.variable_points))
         
         eps = 1e-7
-        for vp_idx in [vp_idx1, vp_idx2]:
-            lambda_perturbed = self.partition.variable_points[vp_idx].lambda_param + eps
-            old_lambda = self.partition.variable_points[vp_idx].lambda_param
-            self.partition.variable_points[vp_idx].lambda_param = lambda_perturbed
-            
-            area_perturbed, _ = self._partial_area_one_inside(tri_idx, cell_idx, v1, v2, v3, labels)
-            
-            gradient[vp_idx] = (area_perturbed - area) / eps
-            
-            self.partition.variable_points[vp_idx].lambda_param = old_lambda
+        
+        # Perturb first variable point
+        lambda1_perturbed = lambda1 + eps
+        if edge1[0] == v_in:
+            p_cut1_perturbed = lambda1_perturbed * p_in + (1 - lambda1_perturbed) * p_out1
+        else:
+            p_cut1_perturbed = (1 - lambda1_perturbed) * p_in + lambda1_perturbed * p_out1
+        area_perturbed1 = self._triangle_area_3d(p_in, p_cut1_perturbed, p_cut2)
+        gradient[vp_idx1] = (area_perturbed1 - area) / eps
+        
+        # Perturb second variable point
+        lambda2_perturbed = lambda2 + eps
+        if edge2[0] == v_in:
+            p_cut2_perturbed = lambda2_perturbed * p_in + (1 - lambda2_perturbed) * p_out2
+        else:
+            p_cut2_perturbed = (1 - lambda2_perturbed) * p_in + lambda2_perturbed * p_out2
+        area_perturbed2 = self._triangle_area_3d(p_in, p_cut1, p_cut2_perturbed)
+        gradient[vp_idx2] = (area_perturbed2 - area) / eps
         
         return area, gradient
     

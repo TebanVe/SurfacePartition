@@ -4,11 +4,16 @@ Steiner tree handling for triple points in partition contours.
 This module implements the triple point treatment from Section 5 of the paper:
 "The empty spaces around triple points". 
 
-When three different regions meet at a triangle, small void spaces are created.
+TERMINOLOGY (following paper Section 5):
+- "cell": Partition region (what we optimize for equal areas)
+- "triangle": Mesh triangle element (computational discretization)
+- "edge": Mesh triangle edge (computational discretization)
+
+When three different partition cells meet at a mesh triangle, small void spaces are created.
 These are filled with Steiner trees that:
-1. Connect three variable points on the triangle's edges
+1. Connect three variable points on the mesh triangle's edges
 2. Meet at an optimal Steiner point that minimizes total edge length
-3. Divide the void area among the three adjacent cells
+3. Divide the void area among the three adjacent partition cells
 
 The Steiner point satisfies the Fermat point property: edges meet at 120° angles.
 """
@@ -32,16 +37,16 @@ except ImportError:
 
 class TriplePoint:
     """
-    Represents a triple point where three partition regions meet.
+    Represents a triple point where three partition cells meet.
     
-    At a triple point, three variable points on a triangle's edges form a small
+    At a triple point, three variable points on a mesh triangle's edges form a small
     void space. A Steiner point is computed to optimally connect these three points,
     minimizing the total perimeter contribution.
     
     Attributes:
         triangle_idx: Index of the mesh triangle containing this triple point
-        var_point_indices: List of 3 variable point indices on the triangle edges
-        cell_indices: List of 3 cell indices that meet here
+        var_point_indices: List of 3 variable point indices on the mesh triangle edges
+        cell_indices: List of 3 partition cell indices that meet here
         steiner_point: Optimal connection point (computed)
         boundary_points: 3D/2D coordinates of the three variable points
     """
@@ -61,17 +66,17 @@ class TriplePoint:
         self.partition = partition
         self.logger = get_logger(__name__)
         
-        # Determine which cells meet at this point
+        # Determine which partition cells meet at this point
         self.cell_indices: List[int] = []
         for vp_idx in var_point_indices:
             vp = partition.variable_points[vp_idx]
-            self.cell_indices.extend(list(vp.adjacent_cells))
+            self.cell_indices.extend(list(vp.belongs_to_cells))
         # Get unique cells (should be exactly 3)
         self.cell_indices = list(set(self.cell_indices))
         
         if len(self.cell_indices) != 3:
-            self.logger.warning(f"Triple point at triangle {triangle_idx} has "
-                              f"{len(self.cell_indices)} cells, expected 3")
+            self.logger.warning(f"Triple point at mesh triangle {triangle_idx} has "
+                              f"{len(self.cell_indices)} partition cells, expected 3")
         
         # Will be computed
         self.steiner_point: Optional[np.ndarray] = None
@@ -144,9 +149,9 @@ class TriplePoint:
             vp_pos = self.partition.evaluate_variable_point(vp_idx)
             edge_length = np.linalg.norm(vp_pos - self.steiner_point)
             
-            # This edge contributes to the cells adjacent to this variable point
+            # This edge contributes to the partition cells that this variable point belongs to
             vp = self.partition.variable_points[vp_idx]
-            for cell_idx in vp.adjacent_cells:
+            for cell_idx in vp.belongs_to_cells:
                 if cell_idx in contributions:
                     contributions[cell_idx] += edge_length
         
@@ -195,9 +200,9 @@ class TriplePoint:
             vp_pos = self.partition.evaluate_variable_point(vp_idx)
             segment = np.vstack([vp_pos, self.steiner_point])
             
-            # Add to cells adjacent to this variable point
+            # Add to partition cells that this variable point belongs to
             vp = self.partition.variable_points[vp_idx]
-            for cell_idx in vp.adjacent_cells:
+            for cell_idx in vp.belongs_to_cells:
                 if cell_idx in segments_dict:
                     segments_dict[cell_idx].append(segment)
         

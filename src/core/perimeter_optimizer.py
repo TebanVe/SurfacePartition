@@ -4,9 +4,14 @@ Perimeter optimization with area constraints for partition refinement.
 This module implements the constrained optimization algorithm from Section 5 of the paper.
 It minimizes total perimeter while maintaining equal area constraints using scipy's SLSQP.
 
+TERMINOLOGY (following paper Section 5):
+- "cell": Partition region (what we optimize for equal areas)
+- "triangle": Mesh triangle element (computational discretization)
+- "edge": Mesh triangle edge (computational discretization)
+
 Main features:
 - Objective: Minimize total perimeter (including Steiner tree contributions)
-- Constraints: Equal area for all cells (within tolerance)
+- Constraints: Equal area for all partition cells (within tolerance)
 - Bounds: λ ∈ [0, 1] for all variable points
 - Gradients: Analytical for perimeter and area
 - Topology switching: Detect and handle boundary cases
@@ -46,7 +51,7 @@ class PerimeterOptimizer:
     Attributes:
         mesh: The underlying TriMesh
         partition: PartitionContour with variable points
-        target_area: Target area for each cell
+        target_area: Target area for each partition cell
         area_calc: AreaCalculator for computing areas and gradients
         perim_calc: PerimeterCalculator for computing perimeters and gradients
         steiner_handler: SteinerHandler for triple point management
@@ -60,7 +65,7 @@ class PerimeterOptimizer:
         Args:
             partition: PartitionContour with extracted contours
             mesh: TriMesh object
-            target_area: Target area for each cell (total_area / n_cells)
+            target_area: Target area for each partition cell (total_area / n_cells)
         """
         self.mesh = mesh
         self.partition = partition
@@ -78,10 +83,10 @@ class PerimeterOptimizer:
         self.constraint_violation_history = []
         
         self.logger.info(f"Initialized PerimeterOptimizer:")
-        self.logger.info(f"  {partition.n_cells} cells")
+        self.logger.info(f"  {partition.n_cells} partition cells")
         self.logger.info(f"  {len(partition.variable_points)} variable points")
         self.logger.info(f"  {len(self.steiner_handler.triple_points)} triple points")
-        self.logger.info(f"  Target area per cell: {target_area:.6f}")
+        self.logger.info(f"  Target area per partition cell: {target_area:.6f}")
     
     def objective(self, lambda_vec: np.ndarray) -> float:
         """

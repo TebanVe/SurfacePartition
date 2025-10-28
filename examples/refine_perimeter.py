@@ -60,7 +60,7 @@ def main():
     args = parser.parse_args()
     
     # Setup logging
-    setup_logging(level=args.log_level)
+    setup_logging(log_level=args.log_level)
     logger = get_logger(__name__)
     
     logger.info("="*80)

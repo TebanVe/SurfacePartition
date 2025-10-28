@@ -6,7 +6,7 @@ r_outer: 1.0
 
 # Optimization parameters (for future use)
 n_partitions: 5
-lambda_penalty: 6.5
+lambda_penalty: 3.0
 max_iter: 25000
 
 # SLSQP parameters
@@ -25,7 +25,7 @@ starget: 1.0
 c: 0.5
 rho: 0.5
 m: 10
-seed: 13
+seed: 163498
 
 # PGD parameters (used when optimizer_type: pgd)
 pgd_step0: 1.0
@@ -85,9 +85,9 @@ penalty_eps: 1.0e-8
 pyslsqp_save_itr: major 
 
 # Torus surface parameters (optional; used when --surface torus)
-n_theta: 120
-n_phi: 108
+n_theta: 60
+n_phi: 48
 R: 1.0
 r: 0.6
-n_theta_increment: 10
-n_phi_increment: 8
+n_theta_increment: 20
+n_phi_increment: 16

@@ -11,6 +11,53 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 from find_contours import ContourAnalyzer
 from plot_utils import plot_partitions_with_contours, plot_contours_on_ring, build_plot_title
 from core.contour_partition import PartitionContour
+from core.tri_mesh import TriMesh
+import numpy as np
+
+
+def load_partition_contour_from_analyzer(analyzer):
+	"""
+	Create PartitionContour with Phase 1 structures from ContourAnalyzer data.
+	
+	Args:
+		analyzer: ContourAnalyzer object with loaded results
+		
+	Returns:
+		tuple: (TriMesh, PartitionContour)
+	"""
+	# Create mesh from analyzer data
+	mesh = TriMesh(analyzer.vertices, analyzer.faces)
+	
+	# Compute indicator functions from densities (winner-takes-all)
+	indicator_functions = analyzer.compute_indicator_functions()
+	
+	# Create partition (triggers Phase 1 initialization)
+	partition = PartitionContour(mesh, indicator_functions)
+	
+	return mesh, partition
+
+
+def load_optimized_lambda_from_file(refined_path, partition):
+	"""
+	Load optimized λ values from refined HDF5 file and apply to partition.
+	
+	Args:
+		refined_path: Path to refined contours .h5 file
+		partition: PartitionContour object
+		
+	Returns:
+		np.ndarray: Optimized λ vector (or None if not found)
+	"""
+	try:
+		with h5py.File(refined_path, 'r') as f:
+			if 'lambda_parameters' in f:
+				lambda_opt = f['lambda_parameters'][:]
+				partition.set_variable_vector(lambda_opt)
+				return lambda_opt
+	except Exception as e:
+		print(f"Warning: Could not load lambda parameters: {e}")
+	
+	return None
 
 
 def main():
@@ -104,10 +151,27 @@ def main():
 		refined_path = args.solution.replace('.h5', '_refined_contours.h5')
 		if os.path.exists(refined_path):
 			try:
-				refined_contours = PartitionContour.load_refined_contours(refined_path)
-				print(f"Loaded refined contours from: {refined_path}")
+				# Phase 3: Use built-in triangle-based extraction
+				print(f"Loading refined contours using Phase 3 triangle-based extraction...")
+				
+				# Create PartitionContour with Phase 1 structures
+				mesh, partition = load_partition_contour_from_analyzer(analyzer)
+				
+				# Load optimized λ values from refined file
+				lambda_opt = load_optimized_lambda_from_file(refined_path, partition)
+				
+				if lambda_opt is not None:
+					# Use built-in to_visualization_format() (now uses Phase 3 extraction)
+					refined_contours = partition.to_visualization_format()
+					print(f"✅ Extracted refined contours from: {refined_path}")
+					print(f"   Variable points: {len(partition.variable_points)}")
+					print(f"   Triangle segments: {len(partition.triangle_segments)}")
+				else:
+					print(f"Warning: Could not load lambda parameters from refined file")
+					print(f"         Falling back to raw contours")
+					
 			except Exception as e:
-				print(f"Warning: Failed to load refined contours: {e}")
+				print(f"Warning: Failed to extract refined contours: {e}")
 				print(f"         Falling back to raw contours")
 		else:
 			print(f"Warning: Refined contours not found at {refined_path}")

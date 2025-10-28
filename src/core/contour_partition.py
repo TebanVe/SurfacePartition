@@ -5,10 +5,19 @@ This module implements Section 5 of the paper "Partitions of Minimal Length on M
 by Bogosel and Oudet. It provides data structures for representing partition contours
 as variable points on mesh edges, enabling direct perimeter optimization.
 
+TERMINOLOGY (following paper Section 5):
+- "cell": Partition region (what we optimize for equal areas)
+- "triangle": Mesh triangle element (computational discretization)
+- "edge": Mesh triangle edge (computational discretization)
+- Variable points "belong to" cells they separate (not just "adjacent")
+
 Key classes:
 - VariablePoint: Point on a mesh edge parameterized by λ ∈ [0,1]
-- CellContour: Ordered contour segments forming one partition cell
+- TriangleSegment: Links mesh triangles to boundary variable points
 - PartitionContour: Complete partition with global variable point management
+
+The triangle-based approach ensures geometrically valid segment extraction that works
+correctly with optimized λ values, avoiding the ordering issues of earlier implementations.
 """
 
 import numpy as np
@@ -34,16 +43,19 @@ class VariablePoint:
     
     Position: x = λ * v_start + (1-λ) * v_end
     
+    As per paper Section 5: "each of these points belongs to at least two cells"
+    because they are situated on mesh triangle edges that cross cell boundaries.
+    
     Attributes:
-        edge: Tuple of (vertex_idx_start, vertex_idx_end)
+        edge: Tuple of (vertex_idx_start, vertex_idx_end) on mesh triangle
         lambda_param: Parameter value in [0, 1]
         global_idx: Index in the global variable vector
-        adjacent_cells: Set of cell indices that use this point
+        belongs_to_cells: Set of cell indices that this point belongs to (boundary between these cells)
     """
     edge: Tuple[int, int]
     lambda_param: float
     global_idx: int
-    adjacent_cells: Set[int]
+    belongs_to_cells: Set[int]
     
     def evaluate(self, vertices: np.ndarray) -> np.ndarray:
         """Compute actual 3D/2D coordinates given lambda."""
@@ -56,57 +68,38 @@ class VariablePoint:
         return self.lambda_param < tol or self.lambda_param > (1 - tol)
 
 
-class CellContour:
+@dataclass
+class TriangleSegment:
     """
-    Represents the contour of one partition cell.
+    Represents a boundary segment within a specific mesh triangle.
     
-    The contour is stored as an ordered list of variable point indices,
-    where consecutive points form segments. The contour may consist of
-    multiple connected components in complex topologies.
+    This class links the geometric triangle to the variable points on its boundary edges,
+    enabling direct re-extraction of contour segments after optimization.
     
     Attributes:
-        cell_idx: Index of this cell in the partition
-        contour_points: Ordered list of global variable point indices
-        connected_components: List of lists, each a closed contour loop
+        triangle_idx: Index of the mesh triangle containing this segment
+        vertex_indices: Tuple of 3 vertex indices (v1, v2, v3) of the triangle
+        vertex_labels: Tuple of 3 cell labels for the vertices
+        boundary_edges: List of edges that cross cell boundaries (normalized: smaller index first)
+        var_point_indices: List of variable point indices corresponding to boundary_edges
     """
+    triangle_idx: int
+    vertex_indices: Tuple[int, int, int]
+    vertex_labels: Tuple[int, int, int]
+    boundary_edges: List[Tuple[int, int]]
+    var_point_indices: List[int]
     
-    def __init__(self, cell_idx: int):
-        self.cell_idx = cell_idx
-        self.contour_points: List[int] = []
-        self.connected_components: List[List[int]] = []
+    def num_cells(self) -> int:
+        """Return number of distinct cells in this triangle."""
+        return len(set(self.vertex_labels))
     
-    def add_point(self, var_point_idx: int):
-        """Add a variable point to the contour."""
-        self.contour_points.append(var_point_idx)
+    def is_triple_point(self) -> bool:
+        """Check if this is a triple point (3 different cells meet)."""
+        return self.num_cells() == 3
     
-    def organize_into_components(self, partition: 'PartitionContour'):
-        """
-        Organize contour points into connected components (closed loops).
-        This is needed for cells with multiple boundaries or complex topology.
-        """
-        if not self.contour_points:
-            return
-        
-        # For now, assume single connected component (most common case)
-        # TODO: Implement proper connected component analysis if needed
-        self.connected_components = [self.contour_points.copy()]
-    
-    def get_segments(self) -> List[Tuple[int, int]]:
-        """
-        Get list of segments as pairs of consecutive variable point indices.
-        For closed contours, includes segment from last back to first point.
-        """
-        segments = []
-        for component in self.connected_components:
-            if len(component) < 2:
-                continue
-            # Consecutive pairs
-            for i in range(len(component) - 1):
-                segments.append((component[i], component[i+1]))
-            # Close the loop
-            if len(component) > 2:
-                segments.append((component[-1], component[0]))
-        return segments
+    def get_cell_indices(self) -> Set[int]:
+        """Get set of unique cell indices in this triangle."""
+        return set(self.vertex_labels)
 
 
 class PartitionContour:
@@ -115,17 +108,17 @@ class PartitionContour:
     
     This is the main data structure for Section 5 optimization. It manages:
     - All variable points across the partition
-    - Contours for each cell
-    - Topology information (which edges form which cells)
+    - Triangle-based contour segment extraction
+    - Topology information (which mesh triangle edges form which cell boundaries)
     - Conversion to/from indicator functions
     
     Attributes:
         mesh: The underlying TriMesh
         n_cells: Number of partition cells
         variable_points: List of all VariablePoint objects
-        cells: List of CellContour objects
+        triangle_segments: List of TriangleSegment objects (triangle-based storage)
         indicator_functions: (N, n_cells) array of φ_i from equation (5.1)
-        edge_to_varpoint: Map from edge tuple to variable point index
+        edge_to_varpoint: Map from mesh triangle edge tuple to variable point index
         triple_points: List of detected triple points (computed on demand)
     """
     
@@ -144,7 +137,7 @@ class PartitionContour:
         
         # Global data structures
         self.variable_points: List[VariablePoint] = []
-        self.cells: List[CellContour] = [CellContour(i) for i in range(self.n_cells)]
+        self.triangle_segments: List[TriangleSegment] = []  # Triangle-centric storage
         self.edge_to_varpoint: Dict[Tuple[int, int], int] = {}
         self.triple_points: Optional[List] = None  # Computed on demand
         
@@ -152,27 +145,33 @@ class PartitionContour:
         self._initialize_from_indicators()
         
         self.logger.info(f"Initialized PartitionContour: {len(self.variable_points)} variable points, "
-                        f"{self.n_cells} cells")
+                        f"{self.n_cells} partition cells")
     
     def _initialize_from_indicators(self):
         """
-        Extract contours from indicator functions by finding mesh edges
-        that cross cell boundaries (where φ_i changes from 0 to 1).
+        Extract contours from indicator functions by finding mesh triangle edges
+        that cross partition cell boundaries (where φ_i changes from 0 to 1).
+        
+        Uses triangle-based segment storage for geometrically valid contour extraction.
         """
         vertex_labels = np.argmax(self.indicator_functions, axis=1)
         
-        # Iterate over all triangles to find boundary edges
+        # Iterate over all mesh triangles to find boundary edges
         for tri_idx, face in enumerate(self.mesh.faces):
             v1, v2, v3 = int(face[0]), int(face[1]), int(face[2])
             label1, label2, label3 = vertex_labels[v1], vertex_labels[v2], vertex_labels[v3]
             
-            # Check each edge of the triangle
+            # Track boundary edges and variable points for this triangle
+            boundary_edges_in_triangle = []
+            var_points_in_triangle = []
+            
+            # Check each edge of the mesh triangle
             edges = [(v1, v2), (v2, v3), (v3, v1)]
             labels = [(label1, label2), (label2, label3), (label3, label1)]
             
             for edge, (lab_a, lab_b) in zip(edges, labels):
                 if lab_a != lab_b:
-                    # This edge crosses a boundary
+                    # This mesh triangle edge crosses a cell boundary
                     # Normalize edge representation (smaller index first)
                     normalized_edge = tuple(sorted(edge))
                     
@@ -182,22 +181,37 @@ class PartitionContour:
                             edge=normalized_edge,
                             lambda_param=0.5,
                             global_idx=len(self.variable_points),
-                            adjacent_cells={lab_a, lab_b}
+                            belongs_to_cells={lab_a, lab_b}
                         )
                         self.variable_points.append(var_point)
                         self.edge_to_varpoint[normalized_edge] = var_point.global_idx
-                        
-                        # Add to both adjacent cells' contours
-                        self.cells[lab_a].add_point(var_point.global_idx)
-                        self.cells[lab_b].add_point(var_point.global_idx)
+                        var_point_idx = var_point.global_idx
                     else:
-                        # Update adjacent cells if this edge appears in multiple triangles
+                        # Update cell membership if this mesh triangle edge appears in multiple triangles
                         var_idx = self.edge_to_varpoint[normalized_edge]
-                        self.variable_points[var_idx].adjacent_cells.update([lab_a, lab_b])
+                        self.variable_points[var_idx].belongs_to_cells.update([lab_a, lab_b])
+                        var_point_idx = var_idx
+                    
+                    # Add to this triangle's boundary edges
+                    boundary_edges_in_triangle.append(normalized_edge)
+                    var_points_in_triangle.append(var_point_idx)
+            
+            # Create TriangleSegment if this triangle has boundary edges
+            if boundary_edges_in_triangle:
+                tri_seg = TriangleSegment(
+                    triangle_idx=tri_idx,
+                    vertex_indices=(v1, v2, v3),
+                    vertex_labels=(label1, label2, label3),
+                    boundary_edges=boundary_edges_in_triangle,
+                    var_point_indices=var_points_in_triangle
+                )
+                self.triangle_segments.append(tri_seg)
         
-        # Organize each cell's points into connected components
-        for cell in self.cells:
-            cell.organize_into_components(self)
+        # Log triangle segment statistics
+        num_two_cell = sum(1 for ts in self.triangle_segments if ts.num_cells() == 2)
+        num_triple = sum(1 for ts in self.triangle_segments if ts.is_triple_point())
+        self.logger.info(f"Created {len(self.triangle_segments)} triangle segments: "
+                        f"{num_two_cell} two-cell, {num_triple} triple-point")
     
     def get_variable_vector(self) -> np.ndarray:
         """
@@ -226,11 +240,94 @@ class PartitionContour:
         """Get 3D/2D coordinates of a variable point."""
         return self.variable_points[var_point_idx].evaluate(self.mesh.vertices)
     
+    def get_triangle_based_segments(self) -> List[Tuple[int, int]]:
+        """
+        NEW - Phase 1: Extract all segments from triangle_segments.
+        
+        Returns list of (var_idx_i, var_idx_j) tuples for all contour segments.
+        Each segment is returned once, even though it may belong to multiple cells.
+        
+        This method will be used in Phase 2 to refactor PerimeterCalculator.
+        
+        Returns:
+            List of unique segment pairs as (var_point_idx1, var_point_idx2)
+        """
+        segments = []
+        seen_segments = set()
+        
+        for tri_seg in self.triangle_segments:
+            var_indices = tri_seg.var_point_indices
+            
+            if tri_seg.num_cells() == 2:
+                # Two-cell triangle: one segment connecting the two variable points
+                if len(var_indices) == 2:
+                    seg = tuple(sorted(var_indices))
+                    if seg not in seen_segments:
+                        segments.append(seg)
+                        seen_segments.add(seg)
+            
+            elif tri_seg.is_triple_point():
+                # Triple-point triangle: three segments forming a small triangle
+                if len(var_indices) == 3:
+                    for i in range(3):
+                        for j in range(i+1, 3):
+                            seg = tuple(sorted([var_indices[i], var_indices[j]]))
+                            if seg not in seen_segments:
+                                segments.append(seg)
+                                seen_segments.add(seg)
+        
+        return segments
+    
+    def get_cell_segments_from_triangles(self, cell_idx: int) -> List[Tuple[int, int]]:
+        """
+        NEW - Phase 1: Get segments for a specific cell from triangle_segments.
+        
+        This is a replacement for CellContour.get_segments() that will be used
+        in Phase 2 to refactor PerimeterCalculator.
+        
+        Args:
+            cell_idx: Index of the cell
+            
+        Returns:
+            List of segment pairs (var_point_idx1, var_point_idx2) for this cell
+        """
+        segments = []
+        seen_segments = set()
+        
+        for tri_seg in self.triangle_segments:
+            # Only process triangles that involve this cell
+            if cell_idx not in tri_seg.get_cell_indices():
+                continue
+            
+            var_indices = tri_seg.var_point_indices
+            
+            if tri_seg.num_cells() == 2:
+                # Two-cell triangle: add the segment if not already seen
+                if len(var_indices) == 2:
+                    seg = tuple(sorted(var_indices))
+                    if seg not in seen_segments:
+                        segments.append(seg)
+                        seen_segments.add(seg)
+            
+            elif tri_seg.is_triple_point():
+                # Triple-point: add all three segments
+                if len(var_indices) == 3:
+                    for i in range(3):
+                        for j in range(i+1, 3):
+                            seg = tuple(sorted([var_indices[i], var_indices[j]]))
+                            if seg not in seen_segments:
+                                segments.append(seg)
+                                seen_segments.add(seg)
+        
+        return segments
+    
     def to_visualization_format(self) -> Dict[int, List[np.ndarray]]:
         """
         Export refined contours in the same format as ContourAnalyzer.extract_contours().
         
-        This allows refined contours to be visualized using existing plot functions.
+        Phase 3: Uses triangle-based extraction to ensure geometrically valid segments.
+        This method re-extracts contour segments from triangles using the current λ values,
+        guaranteeing that segments are continuous and follow the surface correctly.
         
         Returns:
             Dict[region_idx] -> List[segment arrays (2, D)]
@@ -238,16 +335,47 @@ class PartitionContour:
         """
         contours_dict = {i: [] for i in range(self.n_cells)}
         
-        for cell in self.cells:
-            segments = cell.get_segments()
-            for seg_start_idx, seg_end_idx in segments:
-                p_start = self.evaluate_variable_point(seg_start_idx)
-                p_end = self.evaluate_variable_point(seg_end_idx)
-                segment = np.vstack([p_start, p_end])
-                contours_dict[cell.cell_idx].append(segment)
+        # Phase 3: Triangle-based extraction
+        for tri_seg in self.triangle_segments:
+            if tri_seg.num_cells() == 2:
+                # Two-cell triangle: compute level-set segment using current λ values
+                if len(tri_seg.var_point_indices) == 2:
+                    vp_idx1, vp_idx2 = tri_seg.var_point_indices
+                    
+                    p1 = self.evaluate_variable_point(vp_idx1)
+                    p2 = self.evaluate_variable_point(vp_idx2)
+                    
+                    segment = np.vstack([p1, p2])
+                    
+                    # Add to both cells that share this boundary
+                    cells_in_triangle = tri_seg.get_cell_indices()
+                    for cell_idx in cells_in_triangle:
+                        contours_dict[cell_idx].append(segment)
+            
+            elif tri_seg.is_triple_point():
+                # Triple-point triangle: create small triangle connecting 3 variable points
+                if len(tri_seg.var_point_indices) == 3:
+                    vp_idx1, vp_idx2, vp_idx3 = tri_seg.var_point_indices
+                    
+                    p1 = self.evaluate_variable_point(vp_idx1)
+                    p2 = self.evaluate_variable_point(vp_idx2)
+                    p3 = self.evaluate_variable_point(vp_idx3)
+                    
+                    # Create three segments forming a small triangle
+                    seg12 = np.vstack([p1, p2])
+                    seg23 = np.vstack([p2, p3])
+                    seg31 = np.vstack([p3, p1])
+                    
+                    # Add all three segments to all three cells
+                    cells_in_triangle = tri_seg.get_cell_indices()
+                    for cell_idx in cells_in_triangle:
+                        contours_dict[cell_idx].append(seg12)
+                        contours_dict[cell_idx].append(seg23)
+                        contours_dict[cell_idx].append(seg31)
         
-        self.logger.info(f"Converted to visualization format: "
-                        f"{sum(len(segs) for segs in contours_dict.values())} total segments")
+        total_segments = sum(len(segs) for segs in contours_dict.values())
+        self.logger.info(f"Converted to visualization format (Phase 3 triangle-based): "
+                        f"{total_segments} total segments")
         
         return contours_dict
     
@@ -291,7 +419,7 @@ class PartitionContour:
                 vp_subgrp.attrs['edge_start'] = vp.edge[0]
                 vp_subgrp.attrs['edge_end'] = vp.edge[1]
                 vp_subgrp.attrs['lambda'] = vp.lambda_param
-                vp_subgrp.attrs['adjacent_cells'] = list(vp.adjacent_cells)
+                vp_subgrp.attrs['belongs_to_cells'] = list(vp.belongs_to_cells)
             
             # Save evaluated contours in visualization format
             viz_contours = self.to_visualization_format()
@@ -338,9 +466,9 @@ class PartitionContour:
     
     def identify_triple_points(self) -> List[Tuple[int, List[int]]]:
         """
-        Identify triangles where three different regions meet (triple points).
+        Identify mesh triangles where three different partition cells meet (triple points).
         
-        These are triangles with three variable points from three different cells,
+        These are mesh triangles with three variable points from three different cells,
         creating small void spaces that need Steiner tree treatment (Section 5).
         
         Returns:
@@ -353,9 +481,9 @@ class PartitionContour:
             v1, v2, v3 = int(face[0]), int(face[1]), int(face[2])
             labels = {vertex_labels[v1], vertex_labels[v2], vertex_labels[v3]}
             
-            # Triple point: all 3 vertices belong to different regions
+            # Triple point: all 3 vertices belong to different partition cells
             if len(labels) == 3:
-                # Find the 3 variable points on this triangle's edges
+                # Find the 3 variable points on this mesh triangle's edges
                 edges = [
                     tuple(sorted([v1, v2])),
                     tuple(sorted([v2, v3])),
