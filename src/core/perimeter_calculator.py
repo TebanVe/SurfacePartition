@@ -68,13 +68,14 @@ class PerimeterCalculator:
         
         Phase 2: Refactored to use cell indices instead of deprecated CellContour objects.
         
+        Note: Caller must call partition.set_variable_vector(lambda_vec) before this method.
+        
         Args:
-            lambda_vec: Current variable point parameters
+            lambda_vec: Current variable point parameters (for consistency with gradient signature)
             
         Returns:
             Sum of all cell perimeters
         """
-        self.partition.set_variable_vector(lambda_vec)
         total = 0.0
         
         for cell_idx in range(self.partition.n_cells):
@@ -89,14 +90,15 @@ class PerimeterCalculator:
         Phase 2: Refactored to use triangle-based segment extraction instead of deprecated
         CellContour.get_segments().
         
+        Note: Caller must call partition.set_variable_vector(lambda_vec) before this method.
+        
         Args:
             cell_idx: Index of the cell
-            lambda_vec: Current variable point parameters
+            lambda_vec: Current variable point parameters (for consistency with gradient signature)
             
         Returns:
             Total perimeter length
         """
-        self.partition.set_variable_vector(lambda_vec)
         perimeter = 0.0
         
         # Get all segments for this cell using triangle-based extraction
@@ -187,14 +189,15 @@ class PerimeterCalculator:
         Phase 2: Refactored to use triangle-based segment extraction instead of deprecated
         CellContour.get_segments().
         
+        Note: Caller must call partition.set_variable_vector(lambda_vec) before this method.
+        
         Args:
             cell_idx: Index of the cell
-            lambda_vec: Current variable point parameters
+            lambda_vec: Current variable point parameters (for consistency with signature)
             
         Returns:
             Gradient array of shape (n_variable_points,)
         """
-        self.partition.set_variable_vector(lambda_vec)
         gradient = np.zeros(len(lambda_vec))
         
         # Get all segments for this cell using triangle-based extraction
@@ -215,13 +218,14 @@ class PerimeterCalculator:
         
         Phase 2: Refactored to use cell indices instead of deprecated CellContour objects.
         
+        Note: Caller must call partition.set_variable_vector(lambda_vec) before this method.
+        
         Args:
-            lambda_vec: Current variable point parameters
+            lambda_vec: Current variable point parameters (for consistency with signature)
             
         Returns:
             Gradient array of shape (n_variable_points,)
         """
-        self.partition.set_variable_vector(lambda_vec)
         gradient = np.zeros(len(lambda_vec))
         
         for cell_idx in range(self.partition.n_cells):

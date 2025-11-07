@@ -76,13 +76,14 @@ class AreaCalculator:
         """
         Compute areas of all cells given current λ parameters.
         
+        Note: Caller must call partition.set_variable_vector(lambda_vec) before this method.
+        
         Args:
-            lambda_vec: Current variable point parameters
+            lambda_vec: Current variable point parameters (for consistency with signature)
             
         Returns:
             Array of shape (n_cells,) with cell areas
         """
-        self.partition.set_variable_vector(lambda_vec)
         areas = np.zeros(self.partition.n_cells)
         
         for cell_idx in range(self.partition.n_cells):
@@ -94,14 +95,15 @@ class AreaCalculator:
         """
         Compute total area of one cell.
         
+        Note: Caller must call partition.set_variable_vector(lambda_vec) before this method.
+        
         Args:
             cell_idx: Index of the cell
-            lambda_vec: Current variable point parameters
+            lambda_vec: Current variable point parameters (for consistency with signature)
             
         Returns:
             Total area of the cell
         """
-        self.partition.set_variable_vector(lambda_vec)
         total_area = 0.0
         
         # Iterate over all mesh triangles
@@ -115,14 +117,15 @@ class AreaCalculator:
         """
         Compute gradient ∂(Area_i)/∂λ for all variable points.
         
+        Note: Caller must call partition.set_variable_vector(lambda_vec) before this method.
+        
         Args:
             cell_idx: Index of the cell
-            lambda_vec: Current variable point parameters
+            lambda_vec: Current variable point parameters (for consistency with signature)
             
         Returns:
             Gradient array of shape (n_variable_points,)
         """
-        self.partition.set_variable_vector(lambda_vec)
         gradient = np.zeros(len(lambda_vec))
         
         # Accumulate gradients from all mesh triangles

@@ -182,13 +182,45 @@ class PerimeterOptimizer:
         
         return jacobian
     
-    def _callback(self, xk: np.ndarray):
+    def _callback(self, *args, **kwargs):
         """
         Callback function called at each optimization iteration.
         
+        Handles different signatures from different optimization methods:
+        - SLSQP: callback(xk) - xk is the parameter vector
+        - trust-constr: callback(state) or callback(xk, res) - need to extract xk
+        
         Args:
-            xk: Current parameter vector
+            *args: Variable arguments - first arg is typically xk or state object
+            **kwargs: Keyword arguments (not used)
         """
+        # Extract xk from different callback signatures
+        if len(args) == 0:
+            return  # No arguments, skip
+        
+        # For SLSQP: args[0] is xk (numpy array)
+        # For trust-constr: scipy wraps and calls with (xk, res) where xk is np.ndarray
+        # For trust-constr direct: args[0] might be state object with .x attribute
+        if len(args) >= 2:
+            # Multiple arguments: trust-constr wrapped signature (xk, res)
+            # First arg should be xk (numpy array)
+            if isinstance(args[0], np.ndarray):
+                xk = args[0]
+            else:
+                # Try second argument
+                xk = args[1].x if hasattr(args[1], 'x') else args[0]
+        elif isinstance(args[0], np.ndarray):
+            # Single numpy array: SLSQP signature
+            xk = args[0]
+        elif hasattr(args[0], 'x'):
+            # trust-constr state object with .x attribute
+            xk = args[0].x
+        else:
+            # Fallback: try to get x attribute
+            xk = getattr(args[0], 'x', None)
+            if xk is None:
+                return  # Can't extract xk, skip
+        
         self.iteration += 1
         
         # Compute and log progress
@@ -250,6 +282,17 @@ class PerimeterOptimizer:
         # Run optimization
         start_time = time.time()
         
+        # Set method-specific options
+        if method == 'SLSQP':
+            options = {'maxiter': max_iter, 'ftol': tol, 'disp': True}
+        elif method == 'trust-constr':
+            # trust-constr uses 'gtol' for gradient tolerance and 'xtol' for x tolerance
+            # 'maxiter' is also supported
+            options = {'maxiter': max_iter, 'gtol': tol, 'xtol': tol, 'disp': True}
+        else:
+            # Default options for other methods
+            options = {'maxiter': max_iter, 'disp': True}
+        
         result = minimize(
             fun=self.objective,
             x0=lambda0,
@@ -258,7 +301,7 @@ class PerimeterOptimizer:
             bounds=bounds,
             constraints=constraints,
             callback=self._callback,
-            options={'maxiter': max_iter, 'ftol': tol, 'disp': True}
+            options=options
         )
         
         elapsed_time = time.time() - start_time

@@ -43,3 +43,6 @@ examples/test_interpolation_methods.py
 src/core/interpolation_improved.py 
 docs/
 auxiliary/
+scripts/README_code_to_pdf.md
+scripts/code_to_pdf.py
+scripts/code_to_pdf_simple.py

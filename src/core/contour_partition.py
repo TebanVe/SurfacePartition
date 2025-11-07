@@ -411,14 +411,10 @@ class PartitionContour:
                         seen_segments.add(seg)
             
             elif tri_seg.is_triple_point():
-                # Triple-point: add all three segments
-                if len(var_indices) == 3:
-                    for i in range(3):
-                        for j in range(i+1, 3):
-                            seg = tuple(sorted([var_indices[i], var_indices[j]]))
-                            if seg not in seen_segments:
-                                segments.append(seg)
-                                seen_segments.add(seg)
+                # Triple-point triangle: segments handled entirely by SteinerHandler
+                # Per paper Figure 7: each cell gets (2 Steiner edges - 1 original edge)
+                # Do NOT add original triangle edges to regular perimeter calculation
+                continue  # Skip this triangle
         
         return segments
     

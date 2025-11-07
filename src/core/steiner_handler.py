@@ -78,9 +78,71 @@ class TriplePoint:
             self.logger.warning(f"Triple point at mesh triangle {triangle_idx} has "
                               f"{len(self.cell_indices)} partition cells, expected 3")
         
+        # Compute cell-to-variable-point mapping for perimeter calculation
+        # Per Figure 7: each cell gets perimeter from 2 variable points on edges opposite its vertex
+        self.cell_to_varpoint_pair: Dict[int, Tuple[int, int]] = {}
+        self._compute_cell_to_varpoint_mapping()
+        
         # Will be computed
         self.steiner_point: Optional[np.ndarray] = None
         self.boundary_points: Optional[List[np.ndarray]] = None
+    
+    def _compute_cell_to_varpoint_mapping(self):
+        """
+        Compute mapping from each cell to the 2 variable points that define its boundary.
+        
+        Per Figure 7: For a triple point with triangle ABC:
+        - Cell at vertex A gets boundary from edges BC (opposite to A)
+        - Cell at vertex B gets boundary from edges CA (opposite to B)
+        - Cell at vertex C gets boundary from edges AB (opposite to C)
+        
+        This determines which 2 Steiner edges and which 1 original edge
+        contribute to each cell's perimeter.
+        """
+        # Get the TriangleSegment for this triple point
+        tri_seg = None
+        for ts in self.partition.triangle_segments:
+            if ts.triangle_idx == self.triangle_idx and ts.is_triple_point():
+                tri_seg = ts
+                break
+        
+        if tri_seg is None:
+            self.logger.warning(f"Could not find TriangleSegment for triple point at triangle {self.triangle_idx}")
+            return
+        
+        # Extract mesh triangle vertices and their cell labels
+        vertices = tri_seg.vertex_indices  # (v1, v2, v3)
+        labels = tri_seg.vertex_labels     # (label1, label2, label3)
+        
+        # For each vertex (and its cell), find the 2 variable points on opposite edges
+        for i in range(3):
+            vertex = vertices[i]
+            cell_label = labels[i]
+            
+            # The two "opposite" edges don't include this vertex
+            # They connect the other two vertices
+            other_idx1 = (i + 1) % 3
+            other_idx2 = (i + 2) % 3
+            
+            # Edge between the other two vertices
+            edge1 = tuple(sorted([vertices[other_idx1], vertices[other_idx2]]))
+            # Edges from this vertex to each of the other vertices
+            edge2 = tuple(sorted([vertices[i], vertices[other_idx1]]))
+            edge3 = tuple(sorted([vertices[i], vertices[other_idx2]]))
+            
+            # Find which 2 of our 3 variable points are on the edges opposite to this vertex
+            # The opposite edges are edge2 and edge3 (emanating from the other two vertices)
+            vp_indices_for_cell = []
+            for vp_idx in self.var_point_indices:
+                vp = self.partition.variable_points[vp_idx]
+                # Check if this variable point is on one of the edges opposite to our vertex
+                if vp.edge == edge2 or vp.edge == edge3:
+                    vp_indices_for_cell.append(vp_idx)
+            
+            if len(vp_indices_for_cell) == 2:
+                self.cell_to_varpoint_pair[cell_label] = tuple(vp_indices_for_cell)
+            else:
+                self.logger.warning(f"Expected 2 variable points for cell {cell_label} at triple point {self.triangle_idx}, found {len(vp_indices_for_cell)}")
     
     def compute_steiner_point(self) -> np.ndarray:
         """
@@ -130,30 +192,38 @@ class TriplePoint:
     
     def get_perimeter_contribution(self) -> Dict[int, float]:
         """
-        Compute perimeter contribution to each adjacent cell.
+        Compute NET perimeter contribution to each adjacent cell.
         
-        Each of the three cells gets two edges from the Steiner tree.
-        For example, if cell i is adjacent to variable points vp_j and vp_k,
-        it gets edges from vp_j to S and from S to vp_k.
+        Per paper Figure 7: Each cell gets (2 Steiner edges - 1 original edge).
+        
+        For triple point with triangle ABC and Fermat point X:
+        - Cell at vertex A (opposite to edge BC) gets: BX + CX - BC
+        - Cell at vertex B (opposite to edge CA) gets: CX + AX - CA
+        - Cell at vertex C (opposite to edge AB) gets: AX + BX - AB
         
         Returns:
-            Dict mapping cell_idx -> additional perimeter length
+            Dict mapping cell_idx -> NET perimeter contribution
         """
         if self.steiner_point is None:
             self.compute_steiner_point()
         
         contributions = {cell_idx: 0.0 for cell_idx in self.cell_indices}
         
-        # For each variable point, add edge to Steiner point for its adjacent cells
-        for vp_idx in self.var_point_indices:
-            vp_pos = self.partition.evaluate_variable_point(vp_idx)
-            edge_length = np.linalg.norm(vp_pos - self.steiner_point)
+        # For each cell, compute: dist(vp1, X) + dist(vp2, X) - dist(vp1, vp2)
+        for cell_idx, (vp_idx1, vp_idx2) in self.cell_to_varpoint_pair.items():
+            # Get variable point positions
+            vp_pos1 = self.partition.evaluate_variable_point(vp_idx1)
+            vp_pos2 = self.partition.evaluate_variable_point(vp_idx2)
             
-            # This edge contributes to the partition cells that this variable point belongs to
-            vp = self.partition.variable_points[vp_idx]
-            for cell_idx in vp.belongs_to_cells:
-                if cell_idx in contributions:
-                    contributions[cell_idx] += edge_length
+            # Two Steiner edges (from variable points to Fermat point X)
+            steiner_edge1 = np.linalg.norm(vp_pos1 - self.steiner_point)
+            steiner_edge2 = np.linalg.norm(vp_pos2 - self.steiner_point)
+            
+            # One original edge between the two variable points (to subtract)
+            original_edge = np.linalg.norm(vp_pos1 - vp_pos2)
+            
+            # NET contribution per Figure 7: (2 Steiner edges) - (1 original edge)
+            contributions[cell_idx] = steiner_edge1 + steiner_edge2 - original_edge
         
         return contributions
     
