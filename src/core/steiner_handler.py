@@ -231,8 +231,9 @@ class TriplePoint:
         """
         Compute area contribution to each adjacent cell.
         
-        The triangular void is divided into three sub-triangles by the Steiner point.
-        Each sub-triangle is assigned to the cell adjacent to its base edge.
+        Per Figure 7 of the paper: The triangular void ABC is divided into three 
+        sub-triangles by the Steiner point X. Each sub-triangle is assigned to the
+        corresponding cell. For example, area of ABX is added to Cell 3.
         
         Returns:
             Dict mapping cell_idx -> additional area
@@ -242,16 +243,95 @@ class TriplePoint:
         
         contributions = {cell_idx: 0.0 for cell_idx in self.cell_indices}
         
-        # Map each edge (variable point pair) to its adjacent cells
-        # Then assign the sub-triangle formed by that edge and Steiner point
+        # Get the three variable points positions
+        var_points_pos = [self.partition.evaluate_variable_point(vp_idx) 
+                          for vp_idx in self.var_point_indices]
         
-        # For simplicity, divide area equally among the three cells
-        # (More accurate would be to compute actual sub-triangle areas)
-        triangle_area = mesh.triangle_areas[self.triangle_idx]
+        # Per Figure 7: Each cell gets the area of the sub-triangle formed by:
+        # - The Steiner point X
+        # - The two variable points on the edges opposite to that cell's vertex
+        # This mapping is already in self.cell_to_varpoint_pair
+        
         for cell_idx in self.cell_indices:
-            contributions[cell_idx] = triangle_area / 3.0
+            if cell_idx not in self.cell_to_varpoint_pair:
+                # Fallback: equal division (shouldn't happen if mapping is correct)
+                triangle_area = mesh.triangle_areas[self.triangle_idx]
+                contributions[cell_idx] = triangle_area / 3.0
+                continue
+            
+            # Get the two variable point indices for this cell
+            vp_idx1, vp_idx2 = self.cell_to_varpoint_pair[cell_idx]
+            
+            # Find their positions
+            idx1_in_list = self.var_point_indices.index(vp_idx1)
+            idx2_in_list = self.var_point_indices.index(vp_idx2)
+            pos1 = var_points_pos[idx1_in_list]
+            pos2 = var_points_pos[idx2_in_list]
+            
+            # Compute area of triangle (pos1, pos2, steiner_point)
+            # Using same formula as AreaCalculator._triangle_area_3d
+            v1 = pos2 - pos1
+            v2 = self.steiner_point - pos1
+            if len(pos1) == 2:
+                # 2D case
+                area = 0.5 * abs(v1[0] * v2[1] - v1[1] * v2[0])
+            else:
+                # 3D case
+                cross = np.cross(v1, v2)
+                area = 0.5 * np.linalg.norm(cross)
+            
+            contributions[cell_idx] = area
         
         return contributions
+    
+    def compute_area_gradients_finite_difference(self, mesh: TriMesh, 
+                                                 eps: float = 1e-7) -> Dict[int, np.ndarray]:
+        """
+        Compute gradients of Steiner tree area contributions w.r.t. λ parameters.
+        
+        Per paper (line 366): "In order to find the gradient corresponding to the 
+        lengths and area changes due to the addition of these Steiner points we use 
+        a finite differences approximation."
+        
+        Pattern follows compute_gradients_finite_difference() for perimeter.
+        
+        Args:
+            mesh: TriMesh object  
+            eps: Perturbation size for finite differences
+            
+        Returns:
+            Dict mapping cell_idx -> gradient array of shape (n_variable_points,)
+        """
+        n_vars = len(self.partition.variable_points)
+        gradients = {cell_idx: np.zeros(n_vars) for cell_idx in self.cell_indices}
+        
+        # Base area contributions
+        base_contrib = self.get_area_contribution(mesh)
+        
+        # Perturb each λ parameter that affects this triple point
+        for vp_idx in self.var_point_indices:
+            old_lambda = self.partition.variable_points[vp_idx].lambda_param
+            
+            # Perturb
+            self.partition.variable_points[vp_idx].lambda_param = old_lambda + eps
+            
+            # Recompute Steiner point and areas
+            self.steiner_point = None  # Force recomputation
+            perturbed_contrib = self.get_area_contribution(mesh)
+            
+            # Gradient via finite difference for each cell
+            for cell_idx in self.cell_indices:
+                gradients[cell_idx][vp_idx] = (perturbed_contrib[cell_idx] - 
+                                               base_contrib[cell_idx]) / eps
+            
+            # Restore original value
+            self.partition.variable_points[vp_idx].lambda_param = old_lambda
+        
+        # Force recomputation with original values
+        self.steiner_point = None
+        self.compute_steiner_point()
+        
+        return gradients
     
     def get_segments(self) -> Dict[int, List[np.ndarray]]:
         """
@@ -470,6 +550,30 @@ class SteinerHandler:
             gradient += tp.compute_gradients_finite_difference(eps)
         
         return gradient
+    
+    def compute_area_gradients_finite_difference(self, mesh: TriMesh, 
+                                                 eps: float = 1e-7) -> Dict[int, np.ndarray]:
+        """
+        Compute total area gradient contributions from all Steiner trees.
+        
+        Pattern follows compute_total_gradient_finite_difference() for perimeter.
+        
+        Args:
+            mesh: TriMesh object
+            eps: Perturbation size for finite differences
+            
+        Returns:
+            Dict mapping cell_idx -> gradient array of shape (n_variable_points,)
+        """
+        n_vars = len(self.partition.variable_points)
+        gradients = {i: np.zeros(n_vars) for i in range(self.partition.n_cells)}
+        
+        for tp in self.triple_points:
+            tp_gradients = tp.compute_area_gradients_finite_difference(mesh, eps)
+            for cell_idx, grad in tp_gradients.items():
+                gradients[cell_idx] += grad
+        
+        return gradients
     
     def get_boundary_triple_points(self, tol: float = 1e-3) -> List[TriplePoint]:
         """

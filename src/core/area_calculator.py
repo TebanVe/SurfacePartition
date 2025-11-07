@@ -49,11 +49,17 @@ class AreaCalculator:
         partition: PartitionContour with variable points
         vertex_labels: (N,) array mapping vertices to cell indices
         triangle_areas: (T,) array of mesh triangle areas (cached)
+        cell_interior_triangles: Dict[cell_idx] -> List[tri_idx] for fully interior triangles
+        cell_boundary_triangles: Dict[cell_idx] -> List[tri_idx] for boundary triangles
+        cell_interior_area: Dict[cell_idx] -> float for constant interior area
     """
     
     def __init__(self, mesh: TriMesh, partition: PartitionContour):
         """
-        Initialize area calculator.
+        Initialize area calculator with optimized triangle categorization.
+        
+        Performance optimization: Pre-categorizes triangles into interior (constant area)
+        and boundary (λ-dependent area) to avoid checking all triangles during optimization.
         
         Args:
             mesh: TriMesh object
@@ -69,8 +75,71 @@ class AreaCalculator:
         # Cache triangle areas for efficiency
         self.triangle_areas = mesh.triangle_areas
         
+        # Pre-categorize triangles for optimization
+        self.cell_interior_triangles: Dict[int, List[int]] = {}
+        self.cell_boundary_triangles: Dict[int, List[int]] = {}
+        self.cell_interior_area: Dict[int, float] = {}
+        self._categorize_triangles()
+        
         self.logger.info(f"Initialized AreaCalculator for {partition.n_cells} cells, "
                         f"{mesh.faces.shape[0]} triangles")
+    
+    def _categorize_triangles(self):
+        """
+        Pre-categorize all triangles for each cell into interior and boundary triangles.
+        
+        This optimization avoids checking all triangles during every optimization evaluation:
+        - Interior triangles: All 3 vertices in cell (constant area, computed once)
+        - Boundary triangles: 1 or 2 vertices in cell (λ-dependent area, recomputed each eval)
+        
+        Performance impact: For mesh with T triangles and n cells:
+        - Before: T × n triangle checks per evaluation
+        - After: Only boundary triangles checked per evaluation (~5% of T × n)
+        """
+        for cell_idx in range(self.partition.n_cells):
+            interior = []
+            boundary = []
+            interior_area = 0.0
+            
+            # Scan all triangles once to categorize them
+            for tri_idx, face in enumerate(self.mesh.faces):
+                v1, v2, v3 = int(face[0]), int(face[1]), int(face[2])
+                labels = [self.vertex_labels[v1], self.vertex_labels[v2], self.vertex_labels[v3]]
+                
+                # Check if this is a triple-point triangle
+                if len(set(labels)) == 3:
+                    # Triple point: all 3 vertices in different cells
+                    # Skip - will be handled by SteinerHandler
+                    continue
+                
+                n_inside = sum(1 for lab in labels if lab == cell_idx)
+                
+                if n_inside == 3:
+                    # Fully interior: constant contribution
+                    interior.append(tri_idx)
+                    interior_area += self.triangle_areas[tri_idx]
+                elif n_inside > 0:  # 1 or 2
+                    # Boundary: λ-dependent contribution
+                    boundary.append(tri_idx)
+                # n_inside == 0: outside cell, skip
+            
+            self.cell_interior_triangles[cell_idx] = interior
+            self.cell_boundary_triangles[cell_idx] = boundary
+            self.cell_interior_area[cell_idx] = interior_area
+        
+        # Log statistics
+        total_interior = sum(len(v) for v in self.cell_interior_triangles.values())
+        total_boundary = sum(len(v) for v in self.cell_boundary_triangles.values())
+        avg_interior_per_cell = total_interior / self.partition.n_cells
+        avg_boundary_per_cell = total_boundary / self.partition.n_cells
+        
+        self.logger.info(f"Triangle categorization complete:")
+        self.logger.info(f"  Interior triangles: {total_interior} total, "
+                        f"{avg_interior_per_cell:.1f} avg per cell")
+        self.logger.info(f"  Boundary triangles: {total_boundary} total, "
+                        f"{avg_boundary_per_cell:.1f} avg per cell")
+        self.logger.info(f"  Optimization speedup: ~{100 * total_boundary / (self.mesh.faces.shape[0] * self.partition.n_cells):.1f}% "
+                        f"of original triangle checks needed")
     
     def compute_all_cell_areas(self, lambda_vec: np.ndarray) -> np.ndarray:
         """
@@ -93,7 +162,11 @@ class AreaCalculator:
     
     def compute_cell_area(self, cell_idx: int, lambda_vec: np.ndarray) -> float:
         """
-        Compute total area of one cell.
+        Compute total area of one cell (OPTIMIZED).
+        
+        Performance optimization: Uses pre-categorized triangles to avoid checking
+        all mesh triangles. Interior triangles contribute constant area (computed once),
+        only boundary triangles are re-evaluated for each λ vector.
         
         Note: Caller must call partition.set_variable_vector(lambda_vec) before this method.
         
@@ -104,10 +177,11 @@ class AreaCalculator:
         Returns:
             Total area of the cell
         """
-        total_area = 0.0
+        # Start with constant contribution from interior triangles
+        total_area = self.cell_interior_area[cell_idx]
         
-        # Iterate over all mesh triangles
-        for tri_idx in range(self.mesh.faces.shape[0]):
+        # Add λ-dependent contribution from boundary triangles only
+        for tri_idx in self.cell_boundary_triangles[cell_idx]:
             area_contrib, _ = self._triangle_contribution(tri_idx, cell_idx, lambda_vec)
             total_area += area_contrib
         
@@ -115,7 +189,10 @@ class AreaCalculator:
     
     def compute_area_gradient(self, cell_idx: int, lambda_vec: np.ndarray) -> np.ndarray:
         """
-        Compute gradient ∂(Area_i)/∂λ for all variable points.
+        Compute gradient ∂(Area_i)/∂λ for all variable points (OPTIMIZED).
+        
+        Performance optimization: Only boundary triangles contribute to gradients.
+        Interior triangles have zero gradient (constant area independent of λ).
         
         Note: Caller must call partition.set_variable_vector(lambda_vec) before this method.
         
@@ -128,8 +205,8 @@ class AreaCalculator:
         """
         gradient = np.zeros(len(lambda_vec))
         
-        # Accumulate gradients from all mesh triangles
-        for tri_idx in range(self.mesh.faces.shape[0]):
+        # Only boundary triangles contribute to gradient (interior triangles have ∂A/∂λ = 0)
+        for tri_idx in self.cell_boundary_triangles[cell_idx]:
             _, grad_contrib = self._triangle_contribution(tri_idx, cell_idx, lambda_vec)
             gradient += grad_contrib
         

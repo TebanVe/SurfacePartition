@@ -164,6 +164,8 @@ class PerimeterOptimizer:
         """
         Compute Jacobian of area constraints ∂(Area_i - target)/∂λ.
         
+        Per paper section 5: Uses finite differences for Steiner area gradients.
+        
         Args:
             lambda_vec: Current variable point parameters
             
@@ -172,13 +174,17 @@ class PerimeterOptimizer:
         """
         self.partition.set_variable_vector(lambda_vec)
         
-        # Regular area Jacobian (analytical)
+        # Regular area Jacobian (from boundary triangles, analytical)
         jacobian = self.area_calc.compute_area_jacobian(lambda_vec)
         
-        # Note: Steiner tree area contributions are relatively small and
-        # their gradients are complex. For simplicity, we use only the
-        # regular area gradients. This is acceptable because Steiner areas
-        # are typically << 1% of cell areas.
+        # Add Steiner tree area gradients (finite differences, per paper line 366)
+        steiner_gradients = self.steiner_handler.compute_area_gradients_finite_difference(
+            self.mesh, eps=1e-7
+        )
+        
+        # Add Steiner contributions to jacobian (only first n_cells-1 rows)
+        for cell_idx in range(self.partition.n_cells - 1):
+            jacobian[cell_idx, :] += steiner_gradients[cell_idx]
         
         return jacobian
     
