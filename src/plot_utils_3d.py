@@ -41,6 +41,8 @@ def plot_mesh_with_contours_pyvista(
 	show_scalar_bar: bool = False,
 	palette: Optional[List[str]] = None,
 	save_path: Optional[str] = None,
+	steiner_info: Optional[Dict] = None,
+	steiner_size: float = 0.02,
 ):
 	"""
 	Plot a 3D surface mesh with optional contours using PyVista.
@@ -119,6 +121,35 @@ def plot_mesh_with_contours_pyvista(
 					raise ValueError("Contour segments must be (2,3) for 3D plotting")
 				line = pv.Line(seg[0], seg[1])
 				plotter.add_mesh(line, color=color, line_width=5)
+
+	# Add Steiner points and void triangles if provided
+	if steiner_info is not None:
+		steiner_points = steiner_info.get('steiner_points', [])
+		void_triangles = steiner_info.get('void_triangles', [])
+		
+		# Draw Steiner points as red spheres
+		for sp in steiner_points:
+			if sp.shape[0] == 3:  # 3D point
+				sphere = pv.Sphere(radius=steiner_size, center=sp)
+				plotter.add_mesh(sphere, color='red', opacity=0.9)
+		
+		# Draw void triangles and Steiner tree branches
+		for idx, void_tri in enumerate(void_triangles):
+			if void_tri.shape == (3, 3):  # 3 vertices in 3D
+				# Draw the 3 edges of the void triangle (cyan wireframe)
+				for i in range(3):
+					v1 = void_tri[i]
+					v2 = void_tri[(i + 1) % 3]
+					line = pv.Line(v1, v2)
+					plotter.add_mesh(line, color='cyan', line_width=3, opacity=0.8)
+				
+				# Draw Steiner tree branches (from Steiner point to each void vertex)
+				if idx < len(steiner_points):
+					sp = steiner_points[idx]
+					for i in range(3):
+						v = void_tri[i]
+						line = pv.Line(sp, v)
+						plotter.add_mesh(line, color='magenta', line_width=2, opacity=0.7)
 
 	plotter.show()
 	if save_path:

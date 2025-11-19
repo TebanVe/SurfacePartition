@@ -394,4 +394,100 @@ class PerimeterOptimizer:
             self.logger.info(f"  {len(boundary_triple_points)} triple points near boundaries")
         
         return switches_needed, switch_info
+    
+    def diagnose_boundary_triple_points(self, tol: float = 1e-3) -> None:
+        """
+        Print diagnostic information about triple points near mesh triangle boundaries.
+        
+        For each boundary triple point, shows:
+        - Mesh triangle index and vertex labels
+        - Distance from Steiner point to each mesh triangle edge
+        - Which edge is closest
+        - Lambda values of the three variable points forming the void triangle
+        
+        Args:
+            tol: Tolerance used for boundary detection
+        """
+        boundary_triple_points = self.steiner_handler.get_boundary_triple_points(tol)
+        
+        if not boundary_triple_points:
+            return
+        
+        self.logger.info("")
+        self.logger.info("=" * 80)
+        self.logger.info("BOUNDARY TRIPLE POINT DIAGNOSTICS")
+        self.logger.info("=" * 80)
+        
+        for i, tp in enumerate(boundary_triple_points):
+            self.logger.info("")
+            self.logger.info(f"Triple Point {i+1}/{len(boundary_triple_points)}:")
+            self.logger.info(f"  Mesh Triangle: {tp.triangle_idx}")
+            self.logger.info(f"  Cells meeting: {sorted(tp.cell_indices)}")
+            
+            # Get TriangleSegment for this triple point (contains vertex info)
+            tri_seg = None
+            for ts in self.partition.triangle_segments:
+                if ts.triangle_idx == tp.triangle_idx and ts.is_triple_point():
+                    tri_seg = ts
+                    break
+            
+            if tri_seg:
+                v_indices = tri_seg.vertex_indices
+                v_labels = tri_seg.vertex_labels
+                self.logger.info(f"  Triangle vertices: v{v_indices[0]} (Cell {v_labels[0]}), "
+                               f"v{v_indices[1]} (Cell {v_labels[1]}), "
+                               f"v{v_indices[2]} (Cell {v_labels[2]})")
+                
+                # Get Steiner point position
+                if tp.steiner_point is None:
+                    tp.compute_steiner_point()
+                steiner_pos = tp.steiner_point
+                
+                # Check distance to each edge of the mesh triangle
+                vertices = [self.mesh.vertices[v_indices[i]] for i in range(3)]
+                
+                edges = [
+                    ((v_indices[0], v_indices[1]), vertices[0], vertices[1], f"({v_indices[0]}, {v_indices[1]})"),
+                    ((v_indices[1], v_indices[2]), vertices[1], vertices[2], f"({v_indices[1]}, {v_indices[2]})"),
+                    ((v_indices[2], v_indices[0]), vertices[2], vertices[0], f"({v_indices[2]}, {v_indices[0]})")
+                ]
+                
+                closest_edge = None
+                min_dist = float('inf')
+                
+                for edge_vertices, p_start, p_end, edge_name in edges:
+                    dist = tp._point_to_segment_distance(steiner_pos, p_start, p_end)
+                    self.logger.info(f"  Distance to edge {edge_name}: {dist:.6e}")
+                    
+                    if dist < min_dist:
+                        min_dist = dist
+                        closest_edge = (edge_vertices, edge_name, dist)
+                
+                if closest_edge:
+                    self.logger.info(f"  → Steiner point closest to edge {closest_edge[1]} (dist = {closest_edge[2]:.6e})")
+            else:
+                self.logger.warning(f"  Could not find TriangleSegment for this triple point")
+            
+            # Get variable points information
+            self.logger.info(f"  Variable points forming void triangle:")
+            
+            for vp_idx in tp.var_point_indices:
+                vp = self.partition.variable_points[vp_idx]
+                lambda_val = vp.lambda_param
+                
+                # Indicate if near boundary
+                near_0 = lambda_val < tol
+                near_1 = lambda_val > (1.0 - tol)
+                
+                boundary_indicator = ""
+                if near_0:
+                    boundary_indicator = f" ← NEAR 0 (within tol={tol})"
+                elif near_1:
+                    boundary_indicator = f" ← NEAR 1 (within tol={tol})"
+                
+                self.logger.info(f"    VP {vp_idx}: λ = {lambda_val:.6f}, "
+                              f"edge {vp.edge}{boundary_indicator}")
+        
+        self.logger.info("")
+        self.logger.info("=" * 80)
 

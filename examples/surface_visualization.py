@@ -76,6 +76,8 @@ def main():
 	parser.add_argument('--normal-scale', type=float, default=0.1, help='Scale factor for normal length (3D only)')
 	parser.add_argument('--normal-color', type=str, default='yellow', help='Color for normal vectors (3D only)')
 	parser.add_argument('--color-partition', action='store_true', help='Color triangles by partition (3D only)')
+	parser.add_argument('--show-steiner', action='store_true', help='Show Steiner points (triple points) and void triangles (requires --refined)')
+	parser.add_argument('--steiner-size', type=float, default=0.02, help='Size of Steiner point spheres (3D only)')
 	args = parser.parse_args()
 
 	analyzer = ContourAnalyzer(args.solution)
@@ -147,7 +149,11 @@ def main():
 	
 	# Try to load refined contours if requested
 	refined_contours = None
-	if args.refined or args.comparison:
+	steiner_info = None  # Will store Steiner points and void triangles
+	partition = None     # Keep reference for Steiner visualization
+	mesh = None
+	
+	if args.refined or args.comparison or args.show_steiner:
 		refined_path = args.solution.replace('.h5', '_refined_contours.h5')
 		if os.path.exists(refined_path):
 			try:
@@ -166,6 +172,37 @@ def main():
 					print(f"✅ Extracted refined contours from: {refined_path}")
 					print(f"   Variable points: {len(partition.variable_points)}")
 					print(f"   Triangle segments: {len(partition.triangle_segments)}")
+					
+					# Extract Steiner point information if requested
+					if args.show_steiner:
+						from core.steiner_handler import SteinerHandler
+						steiner_handler = SteinerHandler(mesh, partition)
+						steiner_info = {
+							'steiner_points': [],
+							'void_triangles': [],
+							'triple_point_data': []
+						}
+						for tp in steiner_handler.triple_points:
+							# Compute Steiner point
+							steiner_pt = tp.compute_steiner_point()
+							steiner_info['steiner_points'].append(steiner_pt)
+							
+							# Get void triangle vertices (the 3 variable points)
+							void_vertices = []
+							for vp_idx in tp.var_point_indices:
+								vp = partition.variable_points[vp_idx]
+								pos = vp.evaluate(mesh.vertices)
+								void_vertices.append(pos)
+							steiner_info['void_triangles'].append(np.array(void_vertices))
+							
+							# Store additional info for debugging
+							steiner_info['triple_point_data'].append({
+								'triangle_idx': tp.triangle_idx,
+								'cell_indices': tp.cell_indices,
+								'var_point_indices': tp.var_point_indices
+							})
+						
+						print(f"   Triple points: {len(steiner_handler.triple_points)}")
 				else:
 					print(f"Warning: Could not load lambda parameters from refined file")
 					print(f"         Falling back to raw contours")
@@ -238,7 +275,9 @@ def main():
 			face_labels=triangle_labels,
 			palette=light_palette if args.color_partition else None,
 			show_scalar_bar=False,
-			save_path=save_path
+			save_path=save_path,
+			steiner_info=steiner_info if args.show_steiner else None,
+			steiner_size=args.steiner_size
 		)
 		print(f"Saved 3D visualization to: {save_path}")
 	else:

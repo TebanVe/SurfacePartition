@@ -178,6 +178,12 @@ def main():
         else:
             logger.info("")
             logger.info("Topology switches detected - continuing optimization")
+            
+            # Print detailed diagnostics for boundary triple points
+            if switch_info['n_boundary_triple_points'] > 0:
+                optimizer.diagnose_boundary_triple_points(tol=args.boundary_tol)
+            
+            logger.info("")
             logger.info(f"Note: Topology switching not yet fully implemented")
             logger.info(f"      Stopping after {topology_iteration + 1} iteration(s)")
             # For now, we stop here. Full topology switching implementation
