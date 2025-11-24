@@ -177,18 +177,25 @@ def main():
             converged = True
         else:
             logger.info("")
-            logger.info("Topology switches detected - continuing optimization")
+            logger.info("Topology switches detected - applying switches")
             
             # Print detailed diagnostics for boundary triple points
             if switch_info['n_boundary_triple_points'] > 0:
                 optimizer.diagnose_boundary_triple_points(tol=args.boundary_tol)
             
             logger.info("")
-            logger.info(f"Note: Topology switching not yet fully implemented")
-            logger.info(f"      Stopping after {topology_iteration + 1} iteration(s)")
-            # For now, we stop here. Full topology switching implementation
-            # would require moving variable points to adjacent edges
-            converged = True  # Temporary: treat as converged
+            
+            # Apply topology switches
+            n_moves = optimizer.apply_topology_switches(switch_info, switch_tol=args.boundary_tol)
+            
+            if n_moves > 0:
+                # Re-initialize calculators after switches
+                optimizer.reinitialize_after_switches()
+                logger.info(f"Continuing to next topology iteration...")
+            else:
+                # Couldn't apply switches - stop here
+                logger.warning("Could not apply topology switches - stopping")
+                converged = True
         
         topology_iteration += 1
     

@@ -490,4 +490,92 @@ class PerimeterOptimizer:
         
         self.logger.info("")
         self.logger.info("=" * 80)
+    
+    def apply_topology_switches(self, switch_info: Dict, switch_tol: float = 1e-3) -> int:
+        """
+        Apply topology switches (Type 1 and/or Type 2) based on detection results.
+        
+        This is a helper method for the manual loop in refine_perimeter.py.
+        It applies switches but leaves control flow to the caller.
+        
+        Args:
+            switch_info: Dict from check_topology_switches_needed()
+            switch_tol: Tolerance for switch detection (default 1e-3)
+            
+        Returns:
+            Number of variable points moved
+        """
+        from .mesh_topology import MeshTopology
+        from .topology_switcher import TopologySwitcher
+        
+        # Create topology switcher (lightweight, just stores references)
+        mesh_topology = MeshTopology(self.mesh)
+        switcher = TopologySwitcher(self.mesh, self.partition, mesh_topology)
+        
+        total_vp_moves = 0
+        
+        n_type1_detected = switch_info['n_boundary_points']
+        n_type2_detected = switch_info['n_boundary_triple_points']
+        
+        # Handle Type 1 switches (direct boundary VPs)
+        if n_type1_detected > 0:
+            self.logger.info(f"Applying Type 1 switches...")
+            n_type1_applied = 0
+            
+            for vp_idx in switch_info['boundary_point_indices']:
+                if switcher.apply_type1_switch(vp_idx, tol=0.1):
+                    n_type1_applied += 1
+                    total_vp_moves += 1
+            
+            self.logger.info(f"  ✓ Applied {n_type1_applied}/{n_type1_detected} Type 1 switches")
+        
+        # Handle Type 2 switches (boundary triple points)
+        if n_type2_detected > 0:
+            self.logger.info(f"Applying Type 2 switches...")
+            n_type2_applied = 0
+            
+            # For each boundary triple point, identify VP to move and apply Type 1
+            boundary_triple_points = self.steiner_handler.get_boundary_triple_points(switch_tol)
+            
+            for tp in boundary_triple_points:
+                # Type 2 = Select VP + Apply Type 1 move
+                vp_to_move = switcher.select_variable_point_for_type2(tp)
+                
+                if vp_to_move is not None:
+                    # Apply Type 1 switch to enable triple point migration
+                    if switcher.apply_type1_switch(vp_to_move, tol=0.1):
+                        n_type2_applied += 1
+                        total_vp_moves += 1
+            
+            self.logger.info(f"  ✓ Applied {n_type2_applied}/{n_type2_detected} Type 2 switches")
+        
+        if total_vp_moves == 0:
+            self.logger.warning(f"⚠ Switches detected but none could be applied")
+        
+        return total_vp_moves
+    
+    def reinitialize_after_switches(self) -> None:
+        """
+        Re-initialize calculators after topology switches.
+        
+        Must be called after apply_topology_switches() to update:
+        - Steiner handler (triple points may be in different triangles)
+        - Area calculator (boundary triangles may have changed)
+        - Perimeter calculator (fresh state)
+        
+        This is a helper method for the manual loop in refine_perimeter.py.
+        """
+        self.logger.info("Re-initializing calculators after topology switches...")
+        
+        # Re-initialize Steiner handler (finds triple points in new triangles)
+        self.steiner_handler = SteinerHandler(self.mesh, self.partition)
+        
+        # Re-initialize calculators (boundary triangles may have changed)
+        from .area_calculator import AreaCalculator
+        from .perimeter_calculator import PerimeterCalculator
+        
+        self.area_calc = AreaCalculator(self.mesh, self.partition)
+        self.perim_calc = PerimeterCalculator(self.mesh, self.partition)
+        
+        self.logger.info(f"  New triple point count: {len(self.steiner_handler.triple_points)}")
 
